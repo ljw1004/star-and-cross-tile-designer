@@ -25,14 +25,19 @@
           <input type="checkbox" id="show-grid">
           <span>Show grid</span>
         </label>
+        <label class="select-label" for="tile-size">Tile size</label>
+        <select id="tile-size">
+          <option value="3">3&quot; x 3&quot;</option>
+          <option value="4">4&quot; x 4&quot;</option>
+          <option value="5">5&quot; x 5&quot;</option>
+          <option value="6">6&quot; x 6&quot;</option>
+          <option value="7">7&quot; x 7&quot;</option>
+          <option value="8">8&quot; x 8&quot;</option>
+        </select>
         <dl class="specs">
           <div>
-            <dt>Room</dt>
-            <dd>60&quot; x 96&quot;</dd>
-          </div>
-          <div>
-            <dt>Placeholder</dt>
-            <dd>8&quot; x 8&quot;</dd>
+            <dt>Area</dt>
+            <dd id="room-spec">60&quot; x 96&quot;</dd>
           </div>
         </dl>
       </section>
@@ -58,6 +63,10 @@
         <label class="radio-row">
           <input type="radio" name="brush" value="colorOnly">
           <span>Color only</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="grab">
+          <span>Grabber</span>
         </label>
         <label class="radio-row">
           <input type="radio" name="brush" value="erase">

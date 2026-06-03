@@ -28,6 +28,24 @@ Screenshot: `screenshots/centered-origin-diagonal.png`
 
 URL: `file:///Users/ljw/code/tiles/index.html?v=1&m=diagonal&g=1&b=orthogonalCross&mf=dummy&c=bone&l=t%2C0%2C0%2CorthogonalCross%2Cbone`
 
+## Milestone 2: smaller tile size
+
+Screenshot: `screenshots/m2-smaller-tile-size.png`
+
+URL: `file:///Users/ljw/code/tiles/index.html?v=1&m=straight&g=1&rw=60&rh=96&ts=5&ox=0&oy=0&b=orthogonalCross&mf=dummy&c=bone&l=t%2C0%2C0%2CorthogonalCross%2Cbone%3Bt%2C1%2C0%2CdiagonalCross%2Cterracotta`
+
+## Milestone 2: grabbed tile offset
+
+Screenshot: `screenshots/m2-grabbed-tile-offset.png`
+
+URL: `file:///Users/ljw/code/tiles/index.html?v=1&m=straight&g=1&rw=60&rh=96&ts=8&ox=4.5&oy=-3&b=grab&mf=dummy&c=bone&l=t%2C0%2C0%2CorthogonalCross%2Cbone`
+
+## Milestone 2: resized room
+
+Screenshot: `screenshots/m2-resized-room.png`
+
+URL: `file:///Users/ljw/code/tiles/index.html?v=1&m=diagonal&g=1&rw=72&rh=84&ts=8&ox=0&oy=0&b=grab&mf=dummy&c=bone&l=t%2C0%2C0%2CorthogonalCross%2Cbone`
+
 ## Reference Model 2: two bases plus four inside-corner tacos
 
 Screenshot: `screenshots/reference-model-2-two-bases-four-tacos.png`

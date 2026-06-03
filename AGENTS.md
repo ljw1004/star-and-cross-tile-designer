@@ -57,6 +57,6 @@ Note that tiles can overlap placeholders. For instance the star overlaps all adj
 
 1. MVP: A fixed room, fixed tile size, a toggle for diagonal/straight, basic URL encoding, and lets you paint from a dummy manufacturer palette.
 2. Sizes: You can alter room size by dragging its edges, and drag the tile offset by using the grabber, and alter tile size
-3. Rendering: we put in real manufacturers, with palette+texture, and real grout. See RENDER.md
-4. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square"
-5. 3d support.
+3. Rendering: we put in real manufacturers, with palette+texture, and real grout. Let the user chose grout width. See RENDER.md
+4. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can. Make it touch-friendly for use on an ipad or iphone.
+

@@ -1,4 +1,4 @@
-## Manufacturers
+# Tile color and texture
 
 ### Leading cross-and-star suppliers to model
 
@@ -166,3 +166,5 @@ Grout color seed list:
 - Black `#151515`
 
 Implementation note: keep grout as its own material layer. Many cement/zellige sources warn against high-contrast grout because it can stain, haze, or visually overemphasize irregular edges, so the UI should allow contrast but default to near-color or warm-neutral grout for handmade materials.
+
+

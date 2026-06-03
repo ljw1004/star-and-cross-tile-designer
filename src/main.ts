@@ -1,5 +1,5 @@
 type Mode = "straight" | "diagonal";
-type Brush = "orthogonalCross" | "diagonalCross" | "star" | "inset" | "colorOnly" | "erase";
+type Brush = "orthogonalCross" | "diagonalCross" | "star" | "inset" | "colorOnly" | "grab" | "erase";
 type CrossKind = "orthogonalCross" | "diagonalCross";
 type TileKind = CrossKind | "star";
 type Side = "n" | "e" | "s" | "w";
@@ -29,6 +29,12 @@ type Inset = {
 type AppState = {
   mode: Mode;
   showGrid: boolean;
+  roomWidthInches: number;
+  roomHeightInches: number;
+  tileInches: number;
+  offsetXInches: number;
+  offsetYInches: number;
+  zoom: number;
   brush: Brush;
   manufacturerId: string;
   colorId: string;
@@ -58,22 +64,34 @@ type TacoEraseCandidate = {
   hit: boolean;
 };
 
-const ROOM_INCHES = { width: 60, height: 96 };
-const TILE_INCHES = 8;
+type DragInteraction =
+  | { type: "paint"; pointerId: number }
+  | { type: "grab"; pointerId: number; startPoint: Point; startOffsetXInches: number; startOffsetYInches: number }
+  | {
+      type: "resizeRoom";
+      pointerId: number;
+      handle: ResizeHandle;
+      startClientPoint: Point;
+      startWidthInches: number;
+      startHeightInches: number;
+    };
+
+type ResizeHandle = "right" | "bottom" | "corner";
+
+const DEFAULT_ROOM_INCHES = { width: 60, height: 96 };
+const DEFAULT_TILE_INCHES = 8;
+const TILE_SIZE_OPTIONS = [3, 4, 5, 6, 7, 8];
+const MIN_ROOM_WIDTH_INCHES = 24;
+const MIN_ROOM_HEIGHT_INCHES = 24;
+const MAX_ROOM_WIDTH_INCHES = 180;
+const MAX_ROOM_HEIGHT_INCHES = 240;
+const BORDER_HANDLE_PX = 8;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+const ZOOM_FACTOR = 1.12;
 const SCALE = 8;
-const ROOM_PX = {
-  width: ROOM_INCHES.width * SCALE,
-  height: ROOM_INCHES.height * SCALE,
-};
-const ROOM_CENTER: Point = { x: ROOM_PX.width / 2, y: ROOM_PX.height / 2 };
-const TILE_PX = TILE_INCHES * SCALE;
 const GROUT_PX = 3;
 const HALF_GROUT_PX = GROUT_PX / 2;
-const BASE_DRAW_PX = TILE_PX - GROUT_PX;
-const TACO_SIDE_PX = BASE_DRAW_PX / 4;
-const TACO_HALF_DIAGONAL_PX = TACO_SIDE_PX / Math.SQRT2;
-const CROSS_NOTCH_MOUTH = TACO_HALF_DIAGONAL_PX / BASE_DRAW_PX;
-const CROSS_NOTCH_DEPTH = TACO_HALF_DIAGONAL_PX / BASE_DRAW_PX;
 const URL_VERSION = "1";
 const SIDES: Side[] = ["n", "e", "s", "w"];
 const CORNERS: Corner[] = ["nw", "ne", "se", "sw"];
@@ -100,6 +118,12 @@ const MANUFACTURERS: Manufacturer[] = [
 const DEFAULT_STATE: AppState = {
   mode: "straight",
   showGrid: false,
+  roomWidthInches: DEFAULT_ROOM_INCHES.width,
+  roomHeightInches: DEFAULT_ROOM_INCHES.height,
+  tileInches: DEFAULT_TILE_INCHES,
+  offsetXInches: 0,
+  offsetYInches: 0,
+  zoom: 1,
   brush: "orthogonalCross",
   manufacturerId: "dummy",
   colorId: "bone",
@@ -109,8 +133,11 @@ const DEFAULT_STATE: AppState = {
 };
 
 const canvas = requiredElement(document.querySelector<HTMLCanvasElement>("#room"), "room canvas");
+const workspace = requiredElement(document.querySelector<HTMLElement>(".workspace"), "workspace");
 const modeInputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[name='mode']"));
 const showGridInput = requiredElement(document.querySelector<HTMLInputElement>("#show-grid"), "show grid checkbox");
+const tileSizeSelect = requiredElement(document.querySelector<HTMLSelectElement>("#tile-size"), "tile size select");
+const roomSpec = requiredElement(document.querySelector<HTMLElement>("#room-spec"), "room spec");
 const brushInputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[name='brush']"));
 const manufacturerSelect = requiredElement(
   document.querySelector<HTMLSelectElement>("#manufacturer"),
@@ -122,9 +149,10 @@ const layoutErrors = requiredElement(document.querySelector<HTMLDivElement>("#la
 const ctx = requiredElement(canvas.getContext("2d"), "canvas 2D context");
 
 let state = loadState();
-let isPainting = false;
+let dragInteraction: DragInteraction | undefined;
 let lastPaintKey = "";
 let lastConflictSignature = "";
+let renderReadyFrame = 0;
 
 setupCanvas();
 setupControls();
@@ -133,11 +161,14 @@ draw();
 
 function setupCanvas(): void {
   const deviceRatio = window.devicePixelRatio || 1;
-  canvas.width = Math.round(ROOM_PX.width * deviceRatio);
-  canvas.height = Math.round(ROOM_PX.height * deviceRatio);
-  canvas.style.width = `${ROOM_PX.width}px`;
-  canvas.style.height = `${ROOM_PX.height}px`;
+  const room = roomPx();
+  canvas.width = Math.round(room.width * deviceRatio);
+  canvas.height = Math.round(room.height * deviceRatio);
+  canvas.style.width = `${room.width * state.zoom}px`;
+  canvas.style.height = `${room.height * state.zoom}px`;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(deviceRatio, deviceRatio);
+  updateCanvasCursor();
 }
 
 function requiredElement<T>(element: T | null, label: string): T {
@@ -171,11 +202,20 @@ function setupControls(): void {
     draw();
   });
 
+  tileSizeSelect.addEventListener("change", () => {
+    const tileInches = validTileInches(tileSizeSelect.value) ?? state.tileInches;
+    state.tileInches = tileInches;
+    syncSpecs();
+    updateUrl();
+    draw();
+  });
+
   brushInputs.forEach((input) => {
     input.addEventListener("change", () => {
       if (input.checked) {
         state.brush = input.value as Brush;
         updateUrl();
+        updateCanvasCursor();
       }
     });
   });
@@ -196,28 +236,87 @@ function setupControls(): void {
   });
 
   canvas.addEventListener("pointerdown", (event) => {
-    isPainting = true;
     lastPaintKey = "";
     canvas.setPointerCapture(event.pointerId);
+    const point = canvasPoint(event);
+    if (!point || !pointInRoom(point)) {
+      return;
+    }
+
+    const resizeHandle = resizeHandleAtPoint(point);
+    if (resizeHandle) {
+      dragInteraction = {
+        type: "resizeRoom",
+        pointerId: event.pointerId,
+        handle: resizeHandle,
+        startClientPoint: { x: event.clientX, y: event.clientY },
+        startWidthInches: state.roomWidthInches,
+        startHeightInches: state.roomHeightInches,
+      };
+      updateCanvasCursor(point);
+      return;
+    }
+
+    if (state.brush === "grab") {
+      dragInteraction = {
+        type: "grab",
+        pointerId: event.pointerId,
+        startPoint: { x: event.clientX, y: event.clientY },
+        startOffsetXInches: state.offsetXInches,
+        startOffsetYInches: state.offsetYInches,
+      };
+      updateCanvasCursor(point);
+      return;
+    }
+
+    dragInteraction = { type: "paint", pointerId: event.pointerId };
     paintFromPointer(event);
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (isPainting) {
+    if (!dragInteraction) {
+      updateCanvasCursor(canvasPoint(event));
+      return;
+    }
+
+    if (dragInteraction.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (dragInteraction.type === "paint") {
       paintFromPointer(event);
+    } else if (dragInteraction.type === "grab") {
+      moveGridFromPointer(event, dragInteraction);
+    } else {
+      resizeRoomFromPointer(event, dragInteraction);
     }
   });
 
   canvas.addEventListener("pointerup", (event) => {
-    isPainting = false;
     lastPaintKey = "";
+    if (dragInteraction?.pointerId === event.pointerId) {
+      dragInteraction = undefined;
+      updateUrl();
+      updateCanvasCursor(canvasPoint(event));
+    }
     canvas.releasePointerCapture(event.pointerId);
   });
 
-  canvas.addEventListener("pointerleave", () => {
-    isPainting = false;
+  canvas.addEventListener("pointercancel", (event) => {
     lastPaintKey = "";
+    if (dragInteraction?.pointerId === event.pointerId) {
+      dragInteraction = undefined;
+      updateCanvasCursor();
+    }
   });
+
+  canvas.addEventListener("pointerleave", (event) => {
+    if (!dragInteraction) {
+      updateCanvasCursor(canvasPoint(event));
+    }
+  });
+
+  window.addEventListener("wheel", handleWheel, { passive: false });
 }
 
 function syncControls(): void {
@@ -225,11 +324,41 @@ function syncControls(): void {
     input.checked = input.value === state.mode;
   });
   showGridInput.checked = state.showGrid;
+  tileSizeSelect.value = String(state.tileInches);
   brushInputs.forEach((input) => {
     input.checked = input.value === state.brush;
   });
   manufacturerSelect.value = state.manufacturerId;
   renderPalette();
+  syncSpecs();
+  updateCanvasCursor();
+}
+
+function syncSpecs(): void {
+  roomSpec.textContent = `${state.roomWidthInches}" x ${state.roomHeightInches}"`;
+}
+
+function handleWheel(event: WheelEvent): void {
+  event.preventDefault();
+  const canvasRect = canvas.getBoundingClientRect();
+  const workspaceRect = workspace.getBoundingClientRect();
+  const anchorX = workspaceRect.left + workspace.clientWidth / 2 - canvasRect.left;
+  const anchorY = workspaceRect.top + workspace.clientHeight / 2 - canvasRect.top;
+  const previousZoom = state.zoom;
+  const nextZoom = normalizeZoom(previousZoom * (event.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR));
+
+  if (nextZoom === previousZoom) {
+    return;
+  }
+
+  state.zoom = nextZoom;
+  setupCanvas();
+  draw();
+
+  const scale = nextZoom / previousZoom;
+  workspace.scrollLeft += anchorX * (scale - 1);
+  workspace.scrollTop += anchorY * (scale - 1);
+  updateUrl();
 }
 
 function renderPalette(): void {
@@ -253,7 +382,7 @@ function renderPalette(): void {
 
 function paintFromPointer(event: PointerEvent): void {
   const point = canvasPoint(event);
-  if (!point || point.x < 0 || point.y < 0 || point.x >= ROOM_PX.width || point.y >= ROOM_PX.height) {
+  if (!point || !pointInRoom(point)) {
     return;
   }
 
@@ -489,7 +618,7 @@ function edgeEraseCandidate(point: Point, key: string, col: number, row: number,
     key,
     type: "edge",
     distance: candidateDistance,
-    hit: candidateDistance <= TACO_HALF_DIAGONAL_PX + 2,
+    hit: candidateDistance <= tacoHalfDiagonalPx() + 2,
   };
 }
 
@@ -497,7 +626,7 @@ function cornerEraseCandidate(point: Point, key: string, col: number, row: numbe
   const center = cornerInsetCenter(col, row, corner);
   const dx = Math.abs(point.x - center.x);
   const dy = Math.abs(point.y - center.y);
-  const halfSize = TACO_SIDE_PX / 2;
+  const halfSize = tacoSidePx() / 2;
   const margin = 3;
   return {
     key,
@@ -561,10 +690,14 @@ function replaceTileWithDiagonalCrossIfNeeded(col: number, row: number): void {
 }
 
 function draw(): void {
+  renderReadyFrame += 1;
+  const frame = renderReadyFrame;
+  canvas.dataset.renderReady = "false";
   updateConflictReport();
-  ctx.clearRect(0, 0, ROOM_PX.width, ROOM_PX.height);
+  const room = roomPx();
+  ctx.clearRect(0, 0, room.width, room.height);
   ctx.fillStyle = "#050505";
-  ctx.fillRect(0, 0, ROOM_PX.width, ROOM_PX.height);
+  ctx.fillRect(0, 0, room.width, room.height);
 
   if (!state.showGrid) {
     drawPlaceholderGrid();
@@ -575,6 +708,13 @@ function draw(): void {
     drawPlaceholderGrid();
   }
   drawRoomOutline();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (frame === renderReadyFrame) {
+        canvas.dataset.renderReady = "true";
+      }
+    });
+  });
 }
 
 function updateConflictReport(): void {
@@ -724,7 +864,7 @@ function drawTilesByKind(pass: "cross" | "star"): void {
 }
 
 function drawCross(col: number, row: number, kind: CrossKind, color: string): void {
-  const size = BASE_DRAW_PX;
+  const size = baseDrawPx();
 
   ctx.save();
   applyCellTransform(col, row);
@@ -745,10 +885,10 @@ function traceDiagonalCrossPath(size: number): void {
   const half = size / 2;
   const x = (value: number) => value * size - half;
   const y = (value: number) => value * size - half;
-  const mouthStart = 0.5 - CROSS_NOTCH_MOUTH;
-  const mouthEnd = 0.5 + CROSS_NOTCH_MOUTH;
-  const inward = CROSS_NOTCH_DEPTH;
-  const outward = 1 - CROSS_NOTCH_DEPTH;
+  const mouthStart = 0.5 - crossNotchMouth();
+  const mouthEnd = 0.5 + crossNotchMouth();
+  const inward = crossNotchDepth();
+  const outward = 1 - crossNotchDepth();
 
   ctx.beginPath();
   ctx.moveTo(x(0), y(0));
@@ -771,9 +911,9 @@ function traceDiagonalCrossPath(size: number): void {
 }
 
 function drawStar(col: number, row: number, color: string): void {
-  const body = BASE_DRAW_PX / 2;
-  const point = body + TACO_HALF_DIAGONAL_PX;
-  const pointBase = TACO_HALF_DIAGONAL_PX;
+  const body = baseDrawPx() / 2;
+  const point = body + tacoHalfDiagonalPx();
+  const pointBase = tacoHalfDiagonalPx();
 
   ctx.save();
   applyCellTransform(col, row);
@@ -817,7 +957,7 @@ function drawInsets(): void {
 
 function drawEdgeInset(col: number, row: number, side: Side, color: string): void {
   const point = edgeMidpoint(col, row, side);
-  const size = TACO_SIDE_PX;
+  const size = tacoSidePx();
 
   ctx.save();
   ctx.translate(point.x, point.y);
@@ -831,7 +971,7 @@ function drawEdgeInset(col: number, row: number, side: Side, color: string): voi
 }
 
 function drawCornerInset(col: number, row: number, corner: Corner, color: string): void {
-  const size = TACO_SIDE_PX;
+  const size = tacoSidePx();
   const center = cornerInsetCenter(col, row, corner);
 
   ctx.save();
@@ -846,21 +986,22 @@ function drawCornerInset(col: number, row: number, corner: Corner, color: string
 }
 
 function drawPlaceholderGrid(): void {
+  const tile = tilePx();
   ctx.save();
   ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
   ctx.lineWidth = 1;
   ctx.setLineDash([2, 5]);
 
   const window = gridLocalRoomWindow();
-  const startX = Math.floor(window.minX / TILE_PX - 0.5) - 1;
-  const endX = Math.ceil(window.maxX / TILE_PX - 0.5) + 1;
-  const startY = Math.floor(window.minY / TILE_PX - 0.5) - 1;
-  const endY = Math.ceil(window.maxY / TILE_PX - 0.5) + 1;
+  const startX = Math.floor(window.minX / tile - 0.5) - 1;
+  const endX = Math.ceil(window.maxX / tile - 0.5) + 1;
+  const startY = Math.floor(window.minY / tile - 0.5) - 1;
+  const endY = Math.ceil(window.maxY / tile - 0.5) + 1;
 
   for (let i = startX; i <= endX; i += 1) {
-    const x = (i + 0.5) * TILE_PX;
-    const a = gridLocalToScreen({ x, y: window.minY - TILE_PX });
-    const b = gridLocalToScreen({ x, y: window.maxY + TILE_PX });
+    const x = (i + 0.5) * tile;
+    const a = gridLocalToScreen({ x, y: window.minY - tile });
+    const b = gridLocalToScreen({ x, y: window.maxY + tile });
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -868,9 +1009,9 @@ function drawPlaceholderGrid(): void {
   }
 
   for (let i = startY; i <= endY; i += 1) {
-    const y = (i + 0.5) * TILE_PX;
-    const a = gridLocalToScreen({ x: window.minX - TILE_PX, y });
-    const b = gridLocalToScreen({ x: window.maxX + TILE_PX, y });
+    const y = (i + 0.5) * tile;
+    const a = gridLocalToScreen({ x: window.minX - tile, y });
+    const b = gridLocalToScreen({ x: window.maxX + tile, y });
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -881,11 +1022,12 @@ function drawPlaceholderGrid(): void {
 }
 
 function drawRoomOutline(): void {
+  const room = roomPx();
   ctx.save();
   ctx.strokeStyle = "#1c1c1c";
   ctx.lineWidth = 4;
   ctx.setLineDash([]);
-  ctx.strokeRect(2, 2, ROOM_PX.width - 4, ROOM_PX.height - 4);
+  ctx.strokeRect(2, 2, room.width - 4, room.height - 4);
   ctx.restore();
 }
 
@@ -907,12 +1049,13 @@ function loadState(): AppState {
   const params = new URLSearchParams(window.location.search);
   const next = cloneDefaultState();
 
-  if (params.get("v") !== URL_VERSION && !params.has("m")) {
-    return next;
-  }
-
   next.mode = validMode(params.get("m")) ?? next.mode;
   next.showGrid = params.get("g") === "1";
+  next.roomWidthInches = validRoomWidth(params.get("rw")) ?? next.roomWidthInches;
+  next.roomHeightInches = validRoomHeight(params.get("rh")) ?? next.roomHeightInches;
+  next.tileInches = validTileInches(params.get("ts")) ?? next.tileInches;
+  next.offsetXInches = validHalfInch(params.get("ox")) ?? next.offsetXInches;
+  next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
   next.brush = validBrush(params.get("b")) ?? next.brush;
   next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
   next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
@@ -922,6 +1065,8 @@ function loadState(): AppState {
     parseLayout(layout, next);
   }
 
+  next.zoom = initialZoomForRoom(next.roomWidthInches, next.roomHeightInches);
+
   return next;
 }
 
@@ -929,6 +1074,12 @@ function cloneDefaultState(): AppState {
   return {
     mode: DEFAULT_STATE.mode,
     showGrid: DEFAULT_STATE.showGrid,
+    roomWidthInches: DEFAULT_STATE.roomWidthInches,
+    roomHeightInches: DEFAULT_STATE.roomHeightInches,
+    tileInches: DEFAULT_STATE.tileInches,
+    offsetXInches: DEFAULT_STATE.offsetXInches,
+    offsetYInches: DEFAULT_STATE.offsetYInches,
+    zoom: DEFAULT_STATE.zoom,
     brush: DEFAULT_STATE.brush,
     manufacturerId: DEFAULT_STATE.manufacturerId,
     colorId: DEFAULT_STATE.colorId,
@@ -949,7 +1100,7 @@ function parseLayout(layout: string, next: AppState): void {
     if (parts[0] === "t" && parts.length === 5) {
       const col = Number(parts[1]);
       const row = Number(parts[2]);
-      const kind = parseTileKind(parts[3], next.mode);
+      const kind = parseTileKind(parts[3]);
       const colorId = parts[4];
       if (Number.isInteger(col) && Number.isInteger(row) && kind) {
         next.cells.set(cellKey(col, row), { kind, colorId });
@@ -970,13 +1121,6 @@ function parseLayout(layout: string, next: AppState): void {
       if (Number.isInteger(col) && Number.isInteger(row) && validCorner(corner)) {
         next.cornerInsets.set(cornerKey(col, row, corner), { colorId });
       }
-    } else if (parts[0] === "k" && parts.length === 4) {
-      const col = Number(parts[1]);
-      const row = Number(parts[2]);
-      const colorId = parts[3];
-      if (Number.isInteger(col) && Number.isInteger(row)) {
-        next.cornerInsets.set(cornerKey(col, row, "nw"), { colorId });
-      }
     }
   }
 }
@@ -988,6 +1132,11 @@ function updateUrl(): void {
   if (state.showGrid) {
     params.set("g", "1");
   }
+  params.set("rw", String(state.roomWidthInches));
+  params.set("rh", String(state.roomHeightInches));
+  params.set("ts", String(state.tileInches));
+  params.set("ox", String(state.offsetXInches));
+  params.set("oy", String(state.offsetYInches));
   params.set("b", state.brush);
   params.set("mf", state.manufacturerId);
   params.set("c", state.colorId);
@@ -1051,27 +1200,54 @@ function validMode(value: string | null): Mode | undefined {
 }
 
 function validBrush(value: string | null): Brush | undefined {
-  if (value === "base") {
-    return "orthogonalCross";
-  }
   return value === "orthogonalCross" ||
     value === "diagonalCross" ||
     value === "star" ||
     value === "inset" ||
     value === "colorOnly" ||
+    value === "grab" ||
     value === "erase"
     ? value
     : undefined;
 }
 
-function parseTileKind(value: string, mode: Mode): TileKind | undefined {
-  if (value === "base") {
-    return mode === "diagonal" ? "diagonalCross" : "orthogonalCross";
-  }
+function parseTileKind(value: string): TileKind | undefined {
   if (value === "orthogonalCross" || value === "diagonalCross" || value === "star") {
     return value;
   }
   return undefined;
+}
+
+function validTileInches(value: string | null): number | undefined {
+  const next = Number(value);
+  return TILE_SIZE_OPTIONS.includes(next) ? next : undefined;
+}
+
+function validRoomWidth(value: string | null): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  const next = Number(value);
+  return Number.isInteger(next) ? clamp(next, MIN_ROOM_WIDTH_INCHES, MAX_ROOM_WIDTH_INCHES) : undefined;
+}
+
+function validRoomHeight(value: string | null): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  const next = Number(value);
+  return Number.isInteger(next) ? clamp(next, MIN_ROOM_HEIGHT_INCHES, MAX_ROOM_HEIGHT_INCHES) : undefined;
+}
+
+function validHalfInch(value: string | null): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  const next = Number(value);
+  if (!Number.isFinite(next)) {
+    return undefined;
+  }
+  return roundToHalfInch(next);
 }
 
 function validSide(value: string): value is Side {
@@ -1082,12 +1258,159 @@ function validCorner(value: string): value is Corner {
   return value === "nw" || value === "ne" || value === "se" || value === "sw";
 }
 
+function initialZoomForRoom(roomWidthInches: number, roomHeightInches: number): number {
+  const style = getComputedStyle(workspace);
+  const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+  const verticalPadding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+  const availableWidth = Math.max(1, workspace.clientWidth - horizontalPadding);
+  const availableHeight = Math.max(1, workspace.clientHeight - verticalPadding);
+  const roomWidth = roomWidthInches * SCALE;
+  const roomHeight = roomHeightInches * SCALE;
+  return normalizeZoom(Math.min(availableWidth / roomWidth, availableHeight / roomHeight));
+}
+
+function roomPx(): { width: number; height: number } {
+  return {
+    width: state.roomWidthInches * SCALE,
+    height: state.roomHeightInches * SCALE,
+  };
+}
+
+function roomCenter(): Point {
+  const room = roomPx();
+  return { x: room.width / 2, y: room.height / 2 };
+}
+
+function tilePx(): number {
+  return state.tileInches * SCALE;
+}
+
+function baseDrawPx(): number {
+  return Math.max(1, tilePx() - GROUT_PX);
+}
+
+function tacoSidePx(): number {
+  return baseDrawPx() / 4;
+}
+
+function tacoHalfDiagonalPx(): number {
+  return tacoSidePx() / Math.SQRT2;
+}
+
+function crossNotchMouth(): number {
+  return tacoHalfDiagonalPx() / baseDrawPx();
+}
+
+function crossNotchDepth(): number {
+  return tacoHalfDiagonalPx() / baseDrawPx();
+}
+
+function pointInRoom(point: Point): boolean {
+  const room = roomPx();
+  return point.x >= 0 && point.y >= 0 && point.x <= room.width && point.y <= room.height;
+}
+
+function resizeHandleAtPoint(point: Point): ResizeHandle | undefined {
+  const room = roomPx();
+  const nearRight = Math.abs(point.x - room.width) <= BORDER_HANDLE_PX;
+  const nearBottom = Math.abs(point.y - room.height) <= BORDER_HANDLE_PX;
+
+  if (nearRight && nearBottom) {
+    return "corner";
+  }
+  if (nearRight) {
+    return "right";
+  }
+  if (nearBottom) {
+    return "bottom";
+  }
+  return undefined;
+}
+
+function updateCanvasCursor(point?: Point): void {
+  if (dragInteraction?.type === "grab") {
+    canvas.style.cursor = "grabbing";
+    return;
+  }
+  if (dragInteraction?.type === "resizeRoom") {
+    canvas.style.cursor = resizeCursor(dragInteraction.handle);
+    return;
+  }
+
+  const handle = point && pointInRoom(point) ? resizeHandleAtPoint(point) : undefined;
+  if (handle) {
+    canvas.style.cursor = resizeCursor(handle);
+  } else if (state.brush === "grab") {
+    canvas.style.cursor = "grab";
+  } else {
+    canvas.style.cursor = "crosshair";
+  }
+}
+
+function resizeCursor(handle: ResizeHandle): string {
+  if (handle === "right") {
+    return "ew-resize";
+  }
+  if (handle === "bottom") {
+    return "ns-resize";
+  }
+  return "nwse-resize";
+}
+
+function moveGridFromPointer(event: PointerEvent, interaction: Extract<DragInteraction, { type: "grab" }>): void {
+  state.offsetXInches = roundToHalfInch(interaction.startOffsetXInches + (event.clientX - interaction.startPoint.x) / (SCALE * state.zoom));
+  state.offsetYInches = roundToHalfInch(interaction.startOffsetYInches + (event.clientY - interaction.startPoint.y) / (SCALE * state.zoom));
+  updateUrl();
+  draw();
+}
+
+function resizeRoomFromPointer(
+  event: PointerEvent,
+  interaction: Extract<DragInteraction, { type: "resizeRoom" }>,
+): void {
+  if (interaction.handle === "right" || interaction.handle === "corner") {
+    state.roomWidthInches = clamp(
+      Math.round(interaction.startWidthInches + (event.clientX - interaction.startClientPoint.x) / (SCALE * state.zoom)),
+      MIN_ROOM_WIDTH_INCHES,
+      MAX_ROOM_WIDTH_INCHES,
+    );
+  }
+  if (interaction.handle === "bottom" || interaction.handle === "corner") {
+    state.roomHeightInches = clamp(
+      Math.round(interaction.startHeightInches + (event.clientY - interaction.startClientPoint.y) / (SCALE * state.zoom)),
+      MIN_ROOM_HEIGHT_INCHES,
+      MAX_ROOM_HEIGHT_INCHES,
+    );
+  }
+
+  syncSpecs();
+  setupCanvas();
+  updateUrl();
+  draw();
+}
+
+function roundToHalfInch(value: number): number {
+  return Math.round(value * 2) / 2;
+}
+
+function normalizeZoom(value: number): number {
+  return Math.round(clamp(value, MIN_ZOOM, MAX_ZOOM) * 100) / 100;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function layoutRotation(): number {
   return state.mode === "diagonal" ? Math.PI / 4 : 0;
 }
 
 function gridOrigin(): Point {
-  return ROOM_CENTER;
+  const center = roomCenter();
+  return {
+    x: center.x + state.offsetXInches * SCALE,
+    y: center.y + state.offsetYInches * SCALE,
+  };
 }
 
 function applyCellTransform(col: number, row: number): void {
@@ -1097,17 +1420,19 @@ function applyCellTransform(col: number, row: number): void {
 }
 
 function cellLocalToScreen(col: number, row: number, localX: number, localY: number): Point {
-  const x = col * TILE_PX + localX;
-  const y = row * TILE_PX + localY;
+  const tile = tilePx();
+  const x = col * tile + localX;
+  const y = row * tile + localY;
   return gridLocalToScreen({ x, y });
 }
 
 function gridLocalRoomWindow(): { minX: number; maxX: number; minY: number; maxY: number } {
+  const room = roomPx();
   const points = [
     screenToGridLocal({ x: 0, y: 0 }),
-    screenToGridLocal({ x: ROOM_PX.width, y: 0 }),
-    screenToGridLocal({ x: ROOM_PX.width, y: ROOM_PX.height }),
-    screenToGridLocal({ x: 0, y: ROOM_PX.height }),
+    screenToGridLocal({ x: room.width, y: 0 }),
+    screenToGridLocal({ x: room.width, y: room.height }),
+    screenToGridLocal({ x: 0, y: room.height }),
   ];
   return {
     minX: Math.min(...points.map((point) => point.x)),
@@ -1150,18 +1475,20 @@ function screenToGridLocal(point: Point): Point {
 }
 
 function cellFromPoint(point: Point): { col: number; row: number } {
+  const tile = tilePx();
   const local = screenToGridLocal(point);
   return {
-    col: Math.floor(local.x / TILE_PX + 0.5),
-    row: Math.floor(local.y / TILE_PX + 0.5),
+    col: Math.floor(local.x / tile + 0.5),
+    row: Math.floor(local.y / tile + 0.5),
   };
 }
 
 function canvasPoint(event: PointerEvent): Point | undefined {
   const rect = canvas.getBoundingClientRect();
+  const room = roomPx();
   return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+    x: ((event.clientX - rect.left) / rect.width) * room.width,
+    y: ((event.clientY - rect.top) / rect.height) * room.height,
   };
 }
 
@@ -1184,16 +1511,16 @@ function nearestEdge(point: Point, col: number, row: number): { col: number; row
 
 function nearestCorner(point: Point, col: number, row: number): { col: number; row: number; corner: Corner; key: string } {
   const corners = [
-    { corner: "nw" as const, x: col * TILE_PX, y: row * TILE_PX },
-    { corner: "ne" as const, x: (col + 1) * TILE_PX, y: row * TILE_PX },
-    { corner: "se" as const, x: (col + 1) * TILE_PX, y: (row + 1) * TILE_PX },
-    { corner: "sw" as const, x: col * TILE_PX, y: (row + 1) * TILE_PX },
+    { corner: "nw" as const, point: cellLocalToScreen(col, row, -tilePx() / 2, -tilePx() / 2) },
+    { corner: "ne" as const, point: cellLocalToScreen(col, row, tilePx() / 2, -tilePx() / 2) },
+    { corner: "se" as const, point: cellLocalToScreen(col, row, tilePx() / 2, tilePx() / 2) },
+    { corner: "sw" as const, point: cellLocalToScreen(col, row, -tilePx() / 2, tilePx() / 2) },
   ];
   let nearest = corners[0];
   let nearestDistance = Infinity;
 
   for (const corner of corners) {
-    const distance = Math.hypot(point.x - corner.x, point.y - corner.y);
+    const distance = Math.hypot(point.x - corner.point.x, point.y - corner.point.y);
     if (distance < nearestDistance) {
       nearest = corner;
       nearestDistance = distance;
@@ -1217,22 +1544,24 @@ function nearestTacoTarget(point: Point, col: number, row: number): TacoTarget {
 }
 
 function edgeMidpoint(col: number, row: number, side: Side): Point {
+  const halfTile = tilePx() / 2;
   if (side === "n") {
-    return cellLocalToScreen(col, row, 0, -TILE_PX / 2);
+    return cellLocalToScreen(col, row, 0, -halfTile);
   }
   if (side === "e") {
-    return cellLocalToScreen(col, row, TILE_PX / 2, 0);
+    return cellLocalToScreen(col, row, halfTile, 0);
   }
   if (side === "s") {
-    return cellLocalToScreen(col, row, 0, TILE_PX / 2);
+    return cellLocalToScreen(col, row, 0, halfTile);
   }
-  return cellLocalToScreen(col, row, -TILE_PX / 2, 0);
+  return cellLocalToScreen(col, row, -halfTile, 0);
 }
 
 function cornerInsetCenter(col: number, row: number, corner: Corner): Point {
-  const centerOffset = HALF_GROUT_PX + TACO_SIDE_PX / 2;
-  const x = corner === "nw" || corner === "sw" ? -TILE_PX / 2 + centerOffset : TILE_PX / 2 - centerOffset;
-  const y = corner === "nw" || corner === "ne" ? -TILE_PX / 2 + centerOffset : TILE_PX / 2 - centerOffset;
+  const halfTile = tilePx() / 2;
+  const centerOffset = HALF_GROUT_PX + tacoSidePx() / 2;
+  const x = corner === "nw" || corner === "sw" ? -halfTile + centerOffset : halfTile - centerOffset;
+  const y = corner === "nw" || corner === "ne" ? -halfTile + centerOffset : halfTile - centerOffset;
   return cellLocalToScreen(col, row, x, y);
 }
 
@@ -1300,17 +1629,19 @@ function canonicalEdgeKey(col: number, row: number, side: Side): string {
 }
 
 function visibleCell(col: number, row: number): boolean {
-  const margin = TILE_PX;
+  const room = roomPx();
+  const margin = tilePx();
+  const halfTile = tilePx() / 2;
   const points = [
-    cellLocalToScreen(col, row, -TILE_PX / 2, -TILE_PX / 2),
-    cellLocalToScreen(col, row, TILE_PX / 2, -TILE_PX / 2),
-    cellLocalToScreen(col, row, TILE_PX / 2, TILE_PX / 2),
-    cellLocalToScreen(col, row, -TILE_PX / 2, TILE_PX / 2),
+    cellLocalToScreen(col, row, -halfTile, -halfTile),
+    cellLocalToScreen(col, row, halfTile, -halfTile),
+    cellLocalToScreen(col, row, halfTile, halfTile),
+    cellLocalToScreen(col, row, -halfTile, halfTile),
     cellLocalToScreen(col, row, 0, 0),
   ];
   return points.some(
     (point) =>
-      point.x >= -margin && point.y >= -margin && point.x <= ROOM_PX.width + margin && point.y <= ROOM_PX.height + margin,
+      point.x >= -margin && point.y >= -margin && point.x <= room.width + margin && point.y <= room.height + margin,
   );
 }
 
