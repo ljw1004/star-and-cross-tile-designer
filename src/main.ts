@@ -1,5 +1,4 @@
-import { MANUFACTURERS, SCALE, ZOOM_FACTOR } from "./constants";
-import { currentManufacturer } from "./color";
+import { GROUT_COLORS, GROUT_JOINT_OPTIONS, MANUFACTURERS, SCALE, ZOOM_FACTOR } from "./constants";
 import {
   canvasPoint,
   cellFromPoint,
@@ -10,9 +9,10 @@ import {
   roomPx,
   roundToHalfInch,
 } from "./geometry";
-import { colorOnlyAt, eraseAt, paintKey, placeCross, placeInset, placeStar } from "./model";
+import { colorIdAt, colorOnlyAt, eraseAt, paintKey, placeCross, placeInset, placeStar } from "./model";
+import { fillMaterialPath } from "./material";
 import { draw, markRenderReady, renderConflictReport } from "./render";
-import { loadState, updateUrl, validTileInches } from "./state";
+import { loadState, updateUrl, validGroutJoint, validTileInches } from "./state";
 import type { AppState, Brush, DragInteraction, Point, ResizeHandle } from "./types";
 
 const canvas = requiredElement(document.querySelector<HTMLCanvasElement>("#room"), "room canvas");
@@ -22,17 +22,22 @@ const showGridInput = requiredElement(document.querySelector<HTMLInputElement>("
 const tileSizeSelect = requiredElement(document.querySelector<HTMLSelectElement>("#tile-size"), "tile size select");
 const roomSpec = requiredElement(document.querySelector<HTMLElement>("#room-spec"), "room spec");
 const brushInputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[name='brush']"));
-const manufacturerSelect = requiredElement(document.querySelector<HTMLSelectElement>("#manufacturer"), "manufacturer select");
 const palette = requiredElement(document.querySelector<HTMLDivElement>("#palette"), "palette");
+const groutPalette = requiredElement(document.querySelector<HTMLDivElement>("#grout-palette"), "grout palette");
+const groutJointSelect = requiredElement(document.querySelector<HTMLSelectElement>("#grout-joint"), "grout joint select");
 const clearButton = requiredElement(document.querySelector<HTMLButtonElement>("#clear"), "clear button");
 const layoutErrors = requiredElement(document.querySelector<HTMLDivElement>("#layout-errors"), "layout error panel");
 const ctx = requiredElement(canvas.getContext("2d"), "canvas 2D context");
+const swatchTooltip = document.createElement("div");
+swatchTooltip.className = "swatch-tooltip";
+document.body.append(swatchTooltip);
 
 let state: AppState = loadState(workspace);
 let dragInteraction: DragInteraction | undefined;
 let lastPaintKey = "";
 let lastConflictSignature = "";
 let renderReadyFrame = 0;
+const materialSwatchCache = new Map<string, string>();
 
 setupCanvas();
 setupControls();
@@ -59,11 +64,11 @@ function requiredElement<T>(element: T | null, label: string): T {
 }
 
 function setupControls(): void {
-  for (const manufacturer of MANUFACTURERS) {
+  for (const groutJoint of GROUT_JOINT_OPTIONS) {
     const option = document.createElement("option");
-    option.value = manufacturer.id;
-    option.textContent = manufacturer.name;
-    manufacturerSelect.append(option);
+    option.value = String(groutJoint);
+    option.textContent = `${groutJoint}/16"`;
+    groutJointSelect.append(option);
   }
 
   modeInputs.forEach((input) => {
@@ -99,11 +104,10 @@ function setupControls(): void {
     });
   });
 
-  manufacturerSelect.addEventListener("change", () => {
-    state.manufacturerId = manufacturerSelect.value;
-    state.colorId = currentManufacturer(state).colors[0]?.id ?? "bone";
-    renderPalette();
+  groutJointSelect.addEventListener("change", () => {
+    state.groutJointSixteenths = validGroutJoint(groutJointSelect.value) ?? state.groutJointSixteenths;
     updateUrl(state);
+    render();
   });
 
   clearButton.addEventListener("click", () => {
@@ -131,8 +135,9 @@ function syncControls(): void {
   brushInputs.forEach((input) => {
     input.checked = input.value === state.brush;
   });
-  manufacturerSelect.value = state.manufacturerId;
   renderPalette();
+  renderGroutPalette();
+  syncGroutControls();
   syncSpecs();
   updateCanvasCursor();
 }
@@ -143,21 +148,138 @@ function syncSpecs(): void {
 
 function renderPalette(): void {
   palette.innerHTML = "";
-  for (const color of currentManufacturer(state).colors) {
+  palette.classList.toggle("is-picking", state.brush === "colorPicker");
+  const picker = document.createElement("button");
+  picker.className = "swatch color-picker-swatch";
+  picker.type = "button";
+  picker.dataset.tooltip = "Pick color";
+  picker.setAttribute("aria-label", "Pick color");
+  picker.setAttribute("aria-pressed", String(state.brush === "colorPicker"));
+  picker.addEventListener("click", () => {
+    state.brush = "colorPicker";
+    syncBrushControls();
+    renderPalette();
+    updateUrl(state);
+    updateCanvasCursor();
+  });
+  attachSwatchTooltip(picker);
+  palette.append(picker);
+
+  for (const manufacturer of MANUFACTURERS) {
+    const marker = document.createElement("div");
+    marker.className = "palette-manufacturer";
+    marker.dataset.tooltip = manufacturer.name;
+    marker.textContent = manufacturer.name.slice(0, 1);
+    attachSwatchTooltip(marker);
+    palette.append(marker);
+
+    for (const color of manufacturer.colors) {
+      const swatch = document.createElement("button");
+      swatch.className = "swatch";
+      swatch.type = "button";
+      swatch.style.backgroundColor = color.value;
+      swatch.style.backgroundImage = materialSwatchBackground(color.id);
+      const label = `${color.name}\n(${color.texture.replaceAll("_", " ")})\nby ${manufacturer.name}`;
+      swatch.dataset.tooltip = label;
+      swatch.setAttribute("aria-label", label);
+      swatch.setAttribute("aria-pressed", String(state.brush !== "colorPicker" && color.id === state.colorId));
+      swatch.addEventListener("click", () => {
+        selectColor(manufacturer.id, color.id);
+        if (state.brush === "colorPicker") {
+          switchToColorOnly();
+        }
+        renderPalette();
+        updateUrl(state);
+      });
+      attachSwatchTooltip(swatch);
+      palette.append(swatch);
+    }
+  }
+}
+
+function selectColor(manufacturerId: string, colorId: string): void {
+  state.manufacturerId = manufacturerId;
+  state.colorId = colorId;
+}
+
+function switchToColorOnly(): void {
+  state.brush = "colorOnly";
+  syncBrushControls();
+  updateCanvasCursor();
+}
+
+function syncBrushControls(): void {
+  brushInputs.forEach((input) => {
+    input.checked = input.value === state.brush;
+  });
+}
+
+function materialSwatchBackground(colorId: string): string {
+  const cached = materialSwatchCache.get(colorId);
+  if (cached) {
+    return cached;
+  }
+
+  const size = 64;
+  const swatchCanvas = document.createElement("canvas");
+  swatchCanvas.width = size;
+  swatchCanvas.height = size;
+  const swatchCtx = requiredElement(swatchCanvas.getContext("2d"), "swatch canvas context");
+  swatchCtx.beginPath();
+  swatchCtx.rect(0, 0, size, size);
+  fillMaterialPath(swatchCtx, colorId, `swatch:${colorId}`, { x: 0, y: 0, width: size, height: size });
+  const image = `url(${swatchCanvas.toDataURL("image/png")})`;
+  materialSwatchCache.set(colorId, image);
+  return image;
+}
+
+function renderGroutPalette(): void {
+  groutPalette.innerHTML = "";
+  for (const groutColor of GROUT_COLORS) {
     const swatch = document.createElement("button");
     swatch.className = "swatch";
     swatch.type = "button";
-    swatch.style.background = color.value;
-    swatch.title = color.name;
-    swatch.setAttribute("aria-label", color.name);
-    swatch.setAttribute("aria-pressed", String(color.id === state.colorId));
+    swatch.style.background = groutColor.value;
+    swatch.dataset.tooltip = groutColor.name;
+    swatch.setAttribute("aria-label", groutColor.name);
+    swatch.setAttribute("aria-pressed", String(groutColor.id === state.groutColorId));
     swatch.addEventListener("click", () => {
-      state.colorId = color.id;
-      renderPalette();
+      state.groutColorId = groutColor.id;
+      renderGroutPalette();
       updateUrl(state);
+      render();
     });
-    palette.append(swatch);
+    attachSwatchTooltip(swatch);
+    groutPalette.append(swatch);
   }
+}
+
+function attachSwatchTooltip(swatch: HTMLElement): void {
+  swatch.addEventListener("mouseenter", () => showSwatchTooltip(swatch));
+  swatch.addEventListener("mouseleave", hideSwatchTooltip);
+  swatch.addEventListener("focus", () => showSwatchTooltip(swatch));
+  swatch.addEventListener("blur", hideSwatchTooltip);
+}
+
+function showSwatchTooltip(swatch: HTMLElement): void {
+  const text = swatch.dataset.tooltip;
+  if (!text) {
+    return;
+  }
+
+  const rect = swatch.getBoundingClientRect();
+  swatchTooltip.textContent = text;
+  swatchTooltip.style.left = `${rect.right - 4}px`;
+  swatchTooltip.style.top = `${rect.top + 4}px`;
+  swatchTooltip.classList.add("is-visible");
+}
+
+function hideSwatchTooltip(): void {
+  swatchTooltip.classList.remove("is-visible");
+}
+
+function syncGroutControls(): void {
+  groutJointSelect.value = String(state.groutJointSixteenths);
 }
 
 function handlePointerDown(event: PointerEvent): void {
@@ -191,6 +313,11 @@ function handlePointerDown(event: PointerEvent): void {
       startOffsetYInches: state.offsetYInches,
     };
     updateCanvasCursor(point);
+    return;
+  }
+
+  if (state.brush === "colorPicker") {
+    pickColorFromPointer(point);
     return;
   }
 
@@ -293,6 +420,23 @@ function paintFromPointer(event: PointerEvent): void {
   render();
 }
 
+function pickColorFromPointer(point: Point): void {
+  const cell = cellFromPoint(state, point);
+  const colorId = colorIdAt(state, point, cell.col, cell.row);
+  if (!colorId) {
+    return;
+  }
+
+  selectColor(manufacturerIdForColor(colorId), colorId);
+  switchToColorOnly();
+  renderPalette();
+  updateUrl(state);
+}
+
+function manufacturerIdForColor(colorId: string): string {
+  return MANUFACTURERS.find((manufacturer) => manufacturer.colors.some((color) => color.id === colorId))?.id ?? state.manufacturerId;
+}
+
 function updateCanvasCursor(point?: Point): void {
   if (dragInteraction?.type === "grab") {
     canvas.style.cursor = "grabbing";
@@ -308,6 +452,8 @@ function updateCanvasCursor(point?: Point): void {
     canvas.style.cursor = resizeCursor(handle);
   } else if (state.brush === "grab") {
     canvas.style.cursor = "grab";
+  } else if (state.brush === "colorPicker") {
+    canvas.style.cursor = "zoom-in";
   } else {
     canvas.style.cursor = "crosshair";
   }

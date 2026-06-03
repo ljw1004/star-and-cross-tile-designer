@@ -34,6 +34,8 @@
           <option value="7">7&quot; x 7&quot;</option>
           <option value="8">8&quot; x 8&quot;</option>
         </select>
+        <label class="select-label select-label-spaced" for="grout-joint">Grout</label>
+        <select id="grout-joint"></select>
         <dl class="specs">
           <div>
             <dt>Area</dt>
@@ -76,9 +78,12 @@
 
       <section class="control-group">
         <h2>Color</h2>
-        <label class="select-label" for="manufacturer">Manufacturer</label>
-        <select id="manufacturer"></select>
         <div id="palette" class="palette" aria-label="Color palette"></div>
+      </section>
+
+      <section class="control-group">
+        <h2>Grout color</h2>
+        <div id="grout-palette" class="palette grout-palette" aria-label="Grout color palette"></div>
       </section>
 
       <section class="control-group">
@@ -90,6 +95,6 @@
       <canvas id="room" aria-label="Tile painting canvas"></canvas>
     </main>
 
-    <script defer src="dist/main.js"></script>
+    <script defer src="dist/main.js?v=color-picker"></script>
   </body>
 </html>

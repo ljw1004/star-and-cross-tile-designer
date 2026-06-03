@@ -1,15 +1,14 @@
-import { colorValue, outlineColor } from "./color";
-import { SIDES } from "./constants";
+import { groutColorValue } from "./color";
 import { analyzeLayoutConflicts } from "./conflicts";
 import {
   baseDrawPx,
   cellLocalToScreen,
   cornerInsetCenter,
-  crossNotchDepth,
-  crossNotchMouth,
   edgeMidpoint,
   gridLocalRoomWindow,
   gridLocalToScreen,
+  idealTacoHalfDiagonalPx,
+  idealTacoSidePx,
   layoutRotation,
   roomPx,
   tacoHalfDiagonalPx,
@@ -18,6 +17,7 @@ import {
   visibleCell,
 } from "./geometry";
 import { parseCellKey, parseCornerKey, parseEdgeKey } from "./keys";
+import { fillMaterialPath } from "./material";
 import type { AppState, Corner, CrossKind, Side } from "./types";
 
 export function draw(state: AppState, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
@@ -30,6 +30,7 @@ export function draw(state: AppState, ctx: CanvasRenderingContext2D, canvas: HTM
   if (!state.showGrid) {
     drawPlaceholderGrid(state, ctx);
   }
+  drawGroutUnderlays(state, ctx);
   drawPlacedTiles(state, ctx);
   drawInsets(state, ctx);
   if (state.showGrid) {
@@ -78,6 +79,41 @@ export function renderConflictReport(
   return signature;
 }
 
+function drawGroutUnderlays(state: AppState, ctx: CanvasRenderingContext2D): void {
+  ctx.save();
+  ctx.fillStyle = groutColorValue(state.groutColorId);
+  drawCellGroutUnderlays(state, ctx);
+  drawInsetGroutUnderlays(state, ctx);
+  ctx.restore();
+}
+
+function drawCellGroutUnderlays(state: AppState, ctx: CanvasRenderingContext2D): void {
+  for (const [key, tile] of state.cells) {
+    const { col, row } = parseCellKey(key);
+    if (!visibleCell(state, col, row)) {
+      continue;
+    }
+
+    if (tile.kind === "star") {
+      drawStarSilhouette(state, ctx, col, row, tilePx(state), idealTacoHalfDiagonalPx(state));
+    } else {
+      drawCrossSilhouette(state, ctx, col, row, tile.kind, tilePx(state), idealTacoHalfDiagonalPx(state));
+    }
+  }
+}
+
+function drawInsetGroutUnderlays(state: AppState, ctx: CanvasRenderingContext2D): void {
+  for (const [key] of state.edgeInsets) {
+    const edge = parseEdgeKey(key);
+    drawEdgeInsetSilhouette(state, ctx, edge.col, edge.row, edge.side, idealTacoSidePx(state));
+  }
+
+  for (const [key] of state.cornerInsets) {
+    const corner = parseCornerKey(key);
+    drawCornerInsetSilhouette(state, ctx, corner.col, corner.row, corner.corner, idealTacoSidePx(state));
+  }
+}
+
 function drawPlacedTiles(state: AppState, ctx: CanvasRenderingContext2D): void {
   drawTilesByKind(state, ctx, "cross");
   drawTilesByKind(state, ctx, "star");
@@ -90,22 +126,21 @@ function drawTilesByKind(state: AppState, ctx: CanvasRenderingContext2D, pass: "
       continue;
     }
 
-    const color = colorValue(tile.colorId);
     if (tile.kind === "orthogonalCross" || tile.kind === "diagonalCross") {
       if (pass !== "cross") {
         continue;
       }
-      drawCross(state, ctx, col, row, tile.kind, color);
+      drawCross(state, ctx, col, row, tile.kind, tile.colorId);
     } else {
       if (pass !== "star") {
         continue;
       }
-      drawStar(state, ctx, col, row, color);
+      drawStar(state, ctx, col, row, tile.colorId);
     }
   }
 }
 
-function drawCross(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, kind: CrossKind, color: string): void {
+function drawCross(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, kind: CrossKind, colorId: string): void {
   const size = baseDrawPx(state);
 
   ctx.save();
@@ -113,24 +148,39 @@ function drawCross(state: AppState, ctx: CanvasRenderingContext2D, col: number, 
   if (kind === "orthogonalCross") {
     ctx.rotate(Math.PI / 4);
   }
-  ctx.fillStyle = color;
-  ctx.strokeStyle = outlineColor(color);
-  ctx.lineWidth = 1;
-  traceDiagonalCrossPath(state, ctx, size);
-  ctx.fill();
-  ctx.stroke();
-  drawTileHighlight(ctx, size);
+  traceDiagonalCrossPath(ctx, size, tacoHalfDiagonalPx(state));
+  fillMaterialPath(ctx, colorId, `cross:${kind}:${col}:${row}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
   ctx.restore();
 }
 
-function traceDiagonalCrossPath(state: AppState, ctx: CanvasRenderingContext2D, size: number): void {
+function drawCrossSilhouette(
+  state: AppState,
+  ctx: CanvasRenderingContext2D,
+  col: number,
+  row: number,
+  kind: CrossKind,
+  size: number,
+  notchHalfDiagonal: number,
+): void {
+  ctx.save();
+  applyCellTransform(state, ctx, col, row);
+  if (kind === "orthogonalCross") {
+    ctx.rotate(Math.PI / 4);
+  }
+  traceDiagonalCrossPath(ctx, size, notchHalfDiagonal);
+  ctx.fill();
+  ctx.restore();
+}
+
+function traceDiagonalCrossPath(ctx: CanvasRenderingContext2D, size: number, notchHalfDiagonal: number): void {
   const half = size / 2;
   const x = (value: number) => value * size - half;
   const y = (value: number) => value * size - half;
-  const mouthStart = 0.5 - crossNotchMouth(state);
-  const mouthEnd = 0.5 + crossNotchMouth(state);
-  const inward = crossNotchDepth(state);
-  const outward = 1 - crossNotchDepth(state);
+  const notch = notchHalfDiagonal / size;
+  const mouthStart = 0.5 - notch;
+  const mouthEnd = 0.5 + notch;
+  const inward = notch;
+  const outward = 1 - notch;
 
   ctx.beginPath();
   ctx.moveTo(x(0), y(0));
@@ -152,16 +202,37 @@ function traceDiagonalCrossPath(state: AppState, ctx: CanvasRenderingContext2D, 
   ctx.closePath();
 }
 
-function drawStar(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, color: string): void {
+function drawStar(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, colorId: string): void {
   const body = baseDrawPx(state) / 2;
   const point = body + tacoHalfDiagonalPx(state);
   const pointBase = tacoHalfDiagonalPx(state);
 
   ctx.save();
   applyCellTransform(state, ctx, col, row);
-  ctx.fillStyle = color;
-  ctx.strokeStyle = outlineColor(color);
-  ctx.lineWidth = 1.2;
+  traceStarPath(ctx, body, point, pointBase);
+  fillMaterialPath(ctx, colorId, `star:${col}:${row}:${colorId}`, { x: -point, y: -point, width: point * 2, height: point * 2 });
+  ctx.restore();
+}
+
+function drawStarSilhouette(
+  state: AppState,
+  ctx: CanvasRenderingContext2D,
+  col: number,
+  row: number,
+  size: number,
+  pointHalfDiagonal: number,
+): void {
+  const body = size / 2;
+  const point = body + pointHalfDiagonal;
+
+  ctx.save();
+  applyCellTransform(state, ctx, col, row);
+  traceStarPath(ctx, body, point, pointHalfDiagonal);
+  ctx.fill();
+  ctx.restore();
+}
+
+function traceStarPath(ctx: CanvasRenderingContext2D, body: number, point: number, pointBase: number): void {
   ctx.beginPath();
   ctx.moveTo(-body, -body);
   ctx.lineTo(-pointBase, -body);
@@ -180,50 +251,63 @@ function drawStar(state: AppState, ctx: CanvasRenderingContext2D, col: number, r
   ctx.lineTo(-point, 0);
   ctx.lineTo(-body, -pointBase);
   ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }
 
 function drawInsets(state: AppState, ctx: CanvasRenderingContext2D): void {
   for (const [key, inset] of state.edgeInsets) {
     const edge = parseEdgeKey(key);
-    drawEdgeInset(state, ctx, edge.col, edge.row, edge.side, colorValue(inset.colorId));
+    drawEdgeInset(state, ctx, edge.col, edge.row, edge.side, inset.colorId);
   }
 
   for (const [key, inset] of state.cornerInsets) {
     const corner = parseCornerKey(key);
-    drawCornerInset(state, ctx, corner.col, corner.row, corner.corner, colorValue(inset.colorId));
+    drawCornerInset(state, ctx, corner.col, corner.row, corner.corner, inset.colorId);
   }
 }
 
-function drawEdgeInset(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, side: Side, color: string): void {
+function drawEdgeInset(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, side: Side, colorId: string): void {
   const point = edgeMidpoint(state, col, row, side);
   const size = tacoSidePx(state);
 
   ctx.save();
   ctx.translate(point.x, point.y);
   ctx.rotate(layoutRotation(state) + Math.PI / 4);
-  ctx.fillStyle = color;
-  ctx.strokeStyle = outlineColor(color);
-  ctx.lineWidth = 1;
-  ctx.fillRect(-size / 2, -size / 2, size, size);
-  ctx.strokeRect(-size / 2, -size / 2, size, size);
+  ctx.beginPath();
+  ctx.rect(-size / 2, -size / 2, size, size);
+  fillMaterialPath(ctx, colorId, `edge:${col}:${row}:${side}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
   ctx.restore();
 }
 
-function drawCornerInset(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, corner: Corner, color: string): void {
+function drawEdgeInsetSilhouette(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, side: Side, size: number): void {
+  const point = edgeMidpoint(state, col, row, side);
+
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.rotate(layoutRotation(state) + Math.PI / 4);
+  ctx.fillRect(-size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+
+function drawCornerInset(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, corner: Corner, colorId: string): void {
   const size = tacoSidePx(state);
   const center = cornerInsetCenter(state, col, row, corner);
 
   ctx.save();
   ctx.translate(center.x, center.y);
   ctx.rotate(layoutRotation(state));
-  ctx.fillStyle = color;
-  ctx.strokeStyle = outlineColor(color);
-  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.rect(-size / 2, -size / 2, size, size);
+  fillMaterialPath(ctx, colorId, `corner:${col}:${row}:${corner}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
+  ctx.restore();
+}
+
+function drawCornerInsetSilhouette(state: AppState, ctx: CanvasRenderingContext2D, col: number, row: number, corner: Corner, size: number): void {
+  const center = cornerInsetCenter(state, col, row, corner);
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(layoutRotation(state));
   ctx.fillRect(-size / 2, -size / 2, size, size);
-  ctx.strokeRect(-size / 2, -size / 2, size, size);
   ctx.restore();
 }
 
@@ -270,20 +354,6 @@ function drawRoomOutline(state: AppState, ctx: CanvasRenderingContext2D): void {
   ctx.lineWidth = 4;
   ctx.setLineDash([]);
   ctx.strokeRect(2, 2, room.width - 4, room.height - 4);
-  ctx.restore();
-}
-
-function drawTileHighlight(ctx: CanvasRenderingContext2D, size: number): void {
-  const half = size / 2;
-
-  ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(-half + size * 0.18, -half + size * 0.16);
-  ctx.lineTo(-half + size * 0.72, -half + size * 0.16);
-  ctx.stroke();
   ctx.restore();
 }
 

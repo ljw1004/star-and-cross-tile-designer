@@ -1,7 +1,5 @@
 import {
   BORDER_HANDLE_PX,
-  GROUT_PX,
-  HALF_GROUT_PX,
   MAX_ZOOM,
   MIN_ZOOM,
   SCALE,
@@ -37,23 +35,27 @@ export function tilePx(state: AppState): number {
 }
 
 export function baseDrawPx(state: AppState): number {
-  return Math.max(1, tilePx(state) - GROUT_PX);
+  return Math.max(1, tilePx(state) - groutPx(state));
+}
+
+export function groutPx(state: AppState): number {
+  return Math.max(1, (state.groutJointSixteenths / 16) * SCALE);
 }
 
 export function tacoSidePx(state: AppState): number {
-  return baseDrawPx(state) / 4;
+  return Math.max(1, idealTacoSidePx(state) - groutPx(state));
+}
+
+export function idealTacoSidePx(state: AppState): number {
+  return tilePx(state) / 4;
 }
 
 export function tacoHalfDiagonalPx(state: AppState): number {
   return tacoSidePx(state) / Math.SQRT2;
 }
 
-export function crossNotchMouth(state: AppState): number {
-  return tacoHalfDiagonalPx(state) / baseDrawPx(state);
-}
-
-export function crossNotchDepth(state: AppState): number {
-  return tacoHalfDiagonalPx(state) / baseDrawPx(state);
+export function idealTacoHalfDiagonalPx(state: AppState): number {
+  return idealTacoSidePx(state) / Math.SQRT2;
 }
 
 export function pointInRoom(state: AppState, point: Point): boolean {
@@ -231,7 +233,7 @@ export function edgeMidpoint(state: AppState, col: number, row: number, side: Si
 
 export function cornerInsetCenter(state: AppState, col: number, row: number, corner: Corner): Point {
   const halfTile = tilePx(state) / 2;
-  const centerOffset = HALF_GROUT_PX + tacoSidePx(state) / 2;
+  const centerOffset = groutPx(state) / 2 + tacoSidePx(state) / 2;
   const x = corner === "nw" || corner === "sw" ? -halfTile + centerOffset : halfTile - centerOffset;
   const y = corner === "nw" || corner === "ne" ? -halfTile + centerOffset : halfTile - centerOffset;
   return cellLocalToScreen(state, col, row, x, y);

@@ -140,6 +140,18 @@ export function colorOnlyAt(state: AppState, point: Point, col: number, row: num
   }
 }
 
+export function colorIdAt(state: AppState, point: Point, col: number, row: number): string | undefined {
+  const taco = nearestTacoHit(state, point, col, row);
+  if (taco?.type === "edge") {
+    return state.edgeInsets.get(taco.key)?.colorId;
+  }
+  if (taco?.type === "corner") {
+    return state.cornerInsets.get(taco.key)?.colorId;
+  }
+
+  return state.cells.get(cellKey(col, row))?.colorId;
+}
+
 function elementKeyAtPoint(state: AppState, point: Point, col: number, row: number): string {
   const taco = nearestTacoHit(state, point, col, row);
   if (taco) {

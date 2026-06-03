@@ -30,14 +30,15 @@ Source file index:
 
 - `src/main.ts`: Wires DOM controls, pointer/wheel interactions, app state updates, URL updates, and render calls.
 - `src/types.ts`: Defines shared TypeScript types for tiles, app state, geometry, interactions, and conflicts.
-- `src/constants.ts`: Holds defaults, layout limits, scale/grout constants, side/corner lists, and the dummy manufacturer palette.
+- `src/constants.ts`: Holds defaults, layout limits, scale constants, side/corner lists, real manufacturer palettes, material categories, and grout options.
 - `src/state.ts`: Loads state from URL parameters, validates query values, parses/serializes tile layout data, and writes the URL.
 - `src/geometry.ts`: Converts between room, grid, cell, edge, and screen coordinates, including zoom, resize hit-testing, and tile geometry dimensions.
 - `src/keys.ts`: Creates and parses stable map keys for cells, edge tacos, corner tacos, neighbors, and canonical shared edges.
 - `src/model.ts`: Applies painting operations to state, including conflict-fixing tile placement, erase, color-only, taco placement, and automatic taco pruning.
 - `src/conflicts.ts`: Analyzes the current layout for impossible tile/taco conflicts and produces user-facing conflict messages.
-- `src/render.ts`: Draws the room, placeholder grid, tiles, tacos, outlines, highlights, and conflict banner into the canvas/DOM.
-- `src/color.ts`: Resolves color IDs and computes tile outline colors.
+- `src/render.ts`: Draws the room, placeholder grid, grout underlay silhouettes, tiles, tacos, and conflict banner into the canvas/DOM.
+- `src/material.ts`: Renders clipped material fills for tile paths using deterministic texture, variation, grain, clouding, chips, and sheen.
+- `src/color.ts`: Resolves tile/grout color IDs and computes tile outline colors.
 
 ## How tiles fit together
 
@@ -69,6 +70,7 @@ Note that tiles can overlap placeholders. For instance the star overlaps all adj
 
 1. MVP: A fixed room, fixed tile size, a toggle for diagonal/straight, basic URL encoding, and lets you paint from a dummy manufacturer palette.
 2. Sizes: You can alter room size by dragging its edges, and drag the tile offset by using the grabber, and alter tile size
-3. Rendering: we put in real manufacturers, with palette+texture, and real grout. See RENDER.md
-4. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can. Add a material-picker in the color dropdown, which picks up a material and switches the manufacturer dropdown to that one. We'll use the user-facing name "color" even though it truly refers to color+texture.
-5. Touch: make it touch-friendly for use on an ipad or iphone.
+3. Rendering: we put in real manufacturers, with palette+texture, and real grout.  Add a material-picker in the color dropdown, which picks up a material and switches the manufacturer dropdown to that one. We'll use the user-facing name "color" even though it truly refers to color+texture. See RENDER.md
+4. UX: change UX model to "paint-with-tile" vs "paint-color-only" vs "grab/erase/pick".
+5. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can.
+6. Touch: make it touch-friendly for use on an ipad or iphone.

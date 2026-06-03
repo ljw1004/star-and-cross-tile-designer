@@ -115,10 +115,8 @@ type TextureParams = {
   sheen: number;        // 0 matte, 1 mirror-ish gloss
   grain: number;        // fine surface noise
   clouding: number;     // broad cloudy/pigment variation
-  edgeIrregularity: number;
   chipRate: number;
-  bevel: number;
-  groutJointInches: number;
+  groutJointSixteenths: number;
 };
 ```
 
@@ -126,7 +124,7 @@ Variation reference: ANSI A137.1 uses aesthetic classes V0-V4 for overall color 
 
 Suggested rendering behavior:
 
-- `matte_porcelain`: solid fill, tiny noise, crisp edges, low bevel, shadeVariation 1-2. Use for Equipe/Kasbah and many basic retail tiles.
+- `matte_porcelain`: solid fill, tiny noise, crisp edges, shadeVariation 1-2. Use for Equipe/Kasbah and many basic retail tiles.
 - `matte_ceramic`: solid fill, slightly softer edge, low grain, shadeVariation 1-2.
 - `gloss_ceramic`: ceramic base plus a clipped diagonal highlight band and small specular glints; shadeVariation 1-3 depending on color.
 - `handmade_ceramic_matte`: ceramic base with small per-tile hue/lightness jitter, slight geometry wobble, subtle edge darkening.
@@ -139,7 +137,7 @@ Suggested rendering behavior:
 - `rustic_cotto`: rougher terracotta/cotto surface, moderate shade and surface variation, larger pits and edge chips.
 - `saltillo_terracotta`: highest rustic clay variation; add striping, lime-pop dots, hairline cracks, larger chips, uneven edges.
 - `zellige`: V4-level per-tile color jitter, wavy quadrilateral surface patches, strong gloss highlight, uneven hand-cut edges, glaze pooling, occasional dark edge shadows.
-- `dimensional_porcelain`: manufactured porcelain with raised/star relief; for now render as flat color plus bevel/shadow, not true geometry.
+- `dimensional_porcelain`: manufactured porcelain with raised/star relief; for now render as flat color plus subtle gloss/shadow, not true geometry.
 
 ### Grout defaults
 
@@ -166,5 +164,4 @@ Grout color seed list:
 - Black `#151515`
 
 Implementation note: keep grout as its own material layer. Many cement/zellige sources warn against high-contrast grout because it can stain, haze, or visually overemphasize irregular edges, so the UI should allow contrast but default to near-color or warm-neutral grout for handmade materials.
-
 

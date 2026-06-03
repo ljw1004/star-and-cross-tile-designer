@@ -1,5 +1,7 @@
 import {
   DEFAULT_STATE,
+  GROUT_COLORS,
+  GROUT_JOINT_OPTIONS,
   MANUFACTURERS,
   MAX_ROOM_HEIGHT_INCHES,
   MAX_ROOM_WIDTH_INCHES,
@@ -23,6 +25,8 @@ export function loadState(workspace: HTMLElement): AppState {
   next.tileInches = validTileInches(params.get("ts")) ?? next.tileInches;
   next.offsetXInches = validHalfInch(params.get("ox")) ?? next.offsetXInches;
   next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
+  next.groutColorId = validGroutColor(params.get("gc")) ?? next.groutColorId;
+  next.groutJointSixteenths = validGroutJoint(params.get("gj")) ?? next.groutJointSixteenths;
   next.brush = validBrush(params.get("b")) ?? next.brush;
   next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
   next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
@@ -47,6 +51,8 @@ export function cloneDefaultState(): AppState {
     offsetXInches: DEFAULT_STATE.offsetXInches,
     offsetYInches: DEFAULT_STATE.offsetYInches,
     zoom: DEFAULT_STATE.zoom,
+    groutColorId: DEFAULT_STATE.groutColorId,
+    groutJointSixteenths: DEFAULT_STATE.groutJointSixteenths,
     brush: DEFAULT_STATE.brush,
     manufacturerId: DEFAULT_STATE.manufacturerId,
     colorId: DEFAULT_STATE.colorId,
@@ -104,6 +110,8 @@ export function updateUrl(state: AppState): void {
   params.set("ts", String(state.tileInches));
   params.set("ox", String(state.offsetXInches));
   params.set("oy", String(state.offsetYInches));
+  params.set("gc", state.groutColorId);
+  params.set("gj", String(state.groutJointSixteenths));
   params.set("b", state.brush);
   params.set("mf", state.manufacturerId);
   params.set("c", state.colorId);
@@ -148,6 +156,18 @@ export function validColor(manufacturerId: string, id: string | null): string | 
   return manufacturer?.colors.some((color) => color.id === id) ? id ?? undefined : undefined;
 }
 
+export function validGroutColor(id: string | null): string | undefined {
+  return GROUT_COLORS.some((color) => color.id === id) ? id ?? undefined : undefined;
+}
+
+export function validGroutJoint(value: string | null): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  const next = Number(value);
+  return Number.isInteger(next) && GROUT_JOINT_OPTIONS.includes(next) ? next : undefined;
+}
+
 export function validMode(value: string | null): Mode | undefined {
   return value === "straight" || value === "diagonal" ? value : undefined;
 }
@@ -158,6 +178,7 @@ export function validBrush(value: string | null): Brush | undefined {
     value === "star" ||
     value === "inset" ||
     value === "colorOnly" ||
+    value === "colorPicker" ||
     value === "grab" ||
     value === "erase"
     ? value

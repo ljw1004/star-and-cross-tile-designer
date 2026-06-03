@@ -1,5 +1,5 @@
 export type Mode = "straight" | "diagonal";
-export type Brush = "orthogonalCross" | "diagonalCross" | "star" | "inset" | "colorOnly" | "grab" | "erase";
+export type Brush = "orthogonalCross" | "diagonalCross" | "star" | "inset" | "colorOnly" | "colorPicker" | "grab" | "erase";
 export type CrossKind = "orthogonalCross" | "diagonalCross";
 export type TileKind = CrossKind | "star";
 export type Side = "n" | "e" | "s" | "w";
@@ -10,11 +10,18 @@ export type PaletteColor = {
   id: string;
   name: string;
   value: string;
+  texture: TileTexture;
+  shadeVariation: 0 | 1 | 2 | 3 | 4;
+  sheen: number;
+  grain: number;
+  clouding: number;
+  chipRate: number;
 };
 
 export type Manufacturer = {
   id: string;
   name: string;
+  defaultGroutJointSixteenths: number;
   colors: PaletteColor[];
 };
 
@@ -36,6 +43,8 @@ export type AppState = {
   offsetXInches: number;
   offsetYInches: number;
   zoom: number;
+  groutColorId: string;
+  groutJointSixteenths: number;
   brush: Brush;
   manufacturerId: string;
   colorId: string;
@@ -43,6 +52,28 @@ export type AppState = {
   edgeInsets: Map<string, Inset>;
   cornerInsets: Map<string, Inset>;
 };
+
+export type GroutColor = {
+  id: string;
+  name: string;
+  value: string;
+};
+
+export type TileTexture =
+  | "matte_porcelain"
+  | "matte_ceramic"
+  | "gloss_ceramic"
+  | "handmade_ceramic_matte"
+  | "handmade_ceramic_gloss"
+  | "handmade_clay_matte"
+  | "encaustic_cement"
+  | "encaustic_cement_mini"
+  | "natural_terracotta"
+  | "glazed_terracotta"
+  | "rustic_cotto"
+  | "saltillo_terracotta"
+  | "zellige"
+  | "dimensional_porcelain";
 
 export type Point = {
   x: number;

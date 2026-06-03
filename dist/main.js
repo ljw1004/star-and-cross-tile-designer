@@ -13,28 +13,117 @@
   var MAX_ZOOM = 3;
   var ZOOM_FACTOR = 1.12;
   var SCALE = 8;
-  var GROUT_PX = 3;
-  var HALF_GROUT_PX = GROUT_PX / 2;
   var URL_VERSION = "1";
   var SIDES = ["n", "e", "s", "w"];
   var CORNERS = ["nw", "ne", "se", "sw"];
+  var DEFAULT_GROUT_COLOR_ID = "warm-white";
+  var GROUT_JOINT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
   var MANUFACTURERS = [
     {
-      id: "dummy",
-      name: "Dummy Tile Co",
+      id: "equipe-kasbah",
+      name: "Equipe Kasbah",
+      defaultGroutJointSixteenths: 2,
       colors: [
-        { id: "bone", name: "Bone", value: "#e7dcc8" },
-        { id: "smoke", name: "Smoke", value: "#85817a" },
-        { id: "terracotta", name: "Terracotta", value: "#ad5539" },
-        { id: "verd", name: "Verd", value: "#536f56" },
-        { id: "night", name: "Blue Night", value: "#24384d" },
-        { id: "black", name: "Black", value: "#161616" },
-        { id: "white", name: "White", value: "#f1eee5" },
-        { id: "orchard", name: "Orchard Pink", value: "#d9a6a0" },
-        { id: "amber", name: "Amber Grey", value: "#9b9787" },
-        { id: "grass", name: "Blue Grass", value: "#536f84" }
+        tileColor("bone", "Bone", "#e5d8c2", "matte_porcelain", 1),
+        tileColor("smoke", "Smoke", "#85817a", "matte_porcelain", 1),
+        tileColor("mud", "Mud", "#79685a", "matte_porcelain", 2),
+        tileColor("fawn", "Fawn", "#b9936c", "matte_porcelain", 2),
+        tileColor("terracotta", "Terracotta", "#b05a3c", "matte_porcelain", 2),
+        tileColor("canvas", "Canvas Dot Matt", "#d8c7ae", "matte_porcelain", 1),
+        tileColor("orchard", "Orchard Pink Dot Matt", "#d9a6a0", "matte_porcelain", 1),
+        tileColor("verd", "Verd Dot Matt", "#536f56", "matte_porcelain", 2),
+        tileColor("grass", "Blue Grass Dot Matt", "#536f84", "matte_porcelain", 2),
+        tileColor("white", "White Dot Matt", "#ece8dd", "matte_porcelain", 1),
+        tileColor("amber", "Amber Grey Dot Matt", "#9b9787", "matte_porcelain", 2),
+        tileColor("black", "Black Dot Matt", "#171717", "matte_porcelain", 1),
+        tileColor("night", "Blue Night Dot Matt", "#26394d", "matte_porcelain", 2)
+      ]
+    },
+    {
+      id: "fireclay-original",
+      name: "Fireclay Original Ceramic",
+      defaultGroutJointSixteenths: 3,
+      colors: [
+        tileColor("adriatic-sea", "Adriatic Sea Gloss", "#1f6d78", "handmade_ceramic_gloss", 3),
+        tileColor("aegean-sea", "Aegean Sea Gloss", "#3a8fa0", "handmade_ceramic_gloss", 3),
+        tileColor("azul", "Azul Gloss", "#245f94", "handmade_ceramic_gloss", 3),
+        tileColor("evergreen", "Evergreen Gloss", "#245745", "handmade_ceramic_gloss", 3),
+        tileColor("navy-blue", "Navy Blue Gloss", "#1d3550", "handmade_ceramic_gloss", 3),
+        tileColor("peabody", "Peabody Gloss", "#b05842", "handmade_ceramic_gloss", 3),
+        tileColor("carbon", "Carbon Matte", "#353535", "handmade_ceramic_matte", 2),
+        tileColor("cardamom", "Cardamom Matte", "#758164", "handmade_ceramic_matte", 3),
+        tileColor("dolomite", "Dolomite Matte", "#dfd8c9", "handmade_ceramic_matte", 2),
+        tileColor("dust-storm", "Dust Storm Matte", "#b9a289", "handmade_ceramic_matte", 3),
+        tileColor("ivory", "Ivory Matte", "#eee3cf", "handmade_ceramic_matte", 1),
+        tileColor("mustard-seed", "Mustard Seed Matte", "#b78a31", "handmade_ceramic_matte", 3),
+        tileColor("raven", "Raven Matte", "#181a1b", "handmade_ceramic_matte", 2),
+        tileColor("rosemary", "Rosemary Matte", "#64735f", "handmade_ceramic_matte", 3),
+        tileColor("sand-dune", "Sand Dune Matte", "#d7c3a6", "handmade_ceramic_matte", 2),
+        tileColor("slate-blue", "Slate Blue Matte", "#627b8c", "handmade_ceramic_matte", 3)
+      ]
+    },
+    {
+      id: "cle-pavimenti",
+      name: "cl\xE9 Pavimenti Cement",
+      defaultGroutJointSixteenths: 1,
+      colors: [
+        tileColor("cle-charcoal", "Charcoal", "#343434", "encaustic_cement", 3),
+        tileColor("cle-flowerpot", "Flowerpot", "#a94f36", "encaustic_cement", 3),
+        tileColor("cle-white", "White", "#ebe5d8", "encaustic_cement", 2)
+      ]
+    },
+    {
+      id: "zia",
+      name: "Zia Stars & Cross",
+      defaultGroutJointSixteenths: 1,
+      colors: [
+        tileColor("zia-white", "White Cement", "#e9e2d4", "encaustic_cement", 2),
+        tileColor("zia-ash", "Ash Cement", "#4f4d48", "encaustic_cement", 3),
+        tileColor("zia-midnight", "Midnight Cement", "#0f5360", "encaustic_cement", 3),
+        tileColor("zia-zeppelin", "Zeppelin Cement", "#6f8067", "encaustic_cement", 3),
+        tileColor("zia-bone", "Bone Cement", "#d8c8ad", "encaustic_cement", 2),
+        tileColor("zia-blanco", "Blanco Cotto", "#c7b398", "rustic_cotto", 3),
+        tileColor("zia-madera", "Madera Cotto", "#5a372a", "rustic_cotto", 4),
+        tileColor("zia-red-clay", "Red Clay Cotto", "#9e422f", "rustic_cotto", 4)
+      ]
+    },
+    {
+      id: "apollo",
+      name: "Apollo Star and Cross",
+      defaultGroutJointSixteenths: 2,
+      colors: [
+        tileColor("apollo-black-gloss", "Black Gloss", "#111111", "gloss_ceramic", 1),
+        tileColor("apollo-cornflower", "Cornflower Blue Gloss", "#5f83b8", "gloss_ceramic", 2),
+        tileColor("apollo-white", "White Gloss", "#f0eee8", "gloss_ceramic", 1),
+        tileColor("apollo-black-matte", "Black Matte", "#111111", "matte_ceramic", 1),
+        tileColor("apollo-pistachio", "Pistachio Green Matte", "#91a879", "matte_ceramic", 2),
+        tileColor("apollo-light-gray", "Light Gray Matte", "#bebebb", "matte_ceramic", 1),
+        tileColor("apollo-beige", "Beige Porcelain", "#cdbb9d", "dimensional_porcelain", 2)
+      ]
+    },
+    {
+      id: "rustico-saltillo",
+      name: "Rustico Saltillo",
+      defaultGroutJointSixteenths: 4,
+      colors: [
+        tileColor("rustico-spanish-red", "Spanish Mission Red", "#a64b2f", "saltillo_terracotta", 4),
+        tileColor("rustico-manganese", "Manganese", "#6b4235", "saltillo_terracotta", 4),
+        tileColor("rustico-antique", "Antique", "#bd7546", "saltillo_terracotta", 4),
+        tileColor("rustico-traditional", "Traditional", "#c1683a", "saltillo_terracotta", 4),
+        tileColor("rustico-unsealed", "Unsealed Saltillo", "#d48b55", "saltillo_terracotta", 4)
       ]
     }
+  ];
+  var GROUT_COLORS = [
+    { id: "white", name: "White", value: "#f2f0e8" },
+    { id: "warm-white", name: "Warm White", value: "#e4dccd" },
+    { id: "alabaster", name: "Alabaster", value: "#d8d1c2" },
+    { id: "biscuit", name: "Biscuit", value: "#cbbfae" },
+    { id: "warm-gray", name: "Warm Gray", value: "#aaa59b" },
+    { id: "timberwolf", name: "Timberwolf", value: "#8f8c84" },
+    { id: "silver", name: "Silver", value: "#c0c0bc" },
+    { id: "charcoal", name: "Charcoal", value: "#404040" },
+    { id: "black", name: "Black", value: "#151515" }
   ];
   var DEFAULT_STATE = {
     mode: "straight",
@@ -45,37 +134,41 @@
     offsetXInches: 0,
     offsetYInches: 0,
     zoom: 1,
+    groutColorId: DEFAULT_GROUT_COLOR_ID,
+    groutJointSixteenths: MANUFACTURERS[0].defaultGroutJointSixteenths,
     brush: "orthogonalCross",
-    manufacturerId: "dummy",
-    colorId: "bone",
+    manufacturerId: MANUFACTURERS[0].id,
+    colorId: MANUFACTURERS[0].colors[0].id,
     cells: /* @__PURE__ */ new Map(),
     edgeInsets: /* @__PURE__ */ new Map(),
     cornerInsets: /* @__PURE__ */ new Map()
   };
-
-  // src/color.ts
-  function currentManufacturer(state2) {
-    return MANUFACTURERS.find((manufacturer) => manufacturer.id === state2.manufacturerId) ?? MANUFACTURERS[0];
+  function tileColor(id, name, value, texture, shadeVariation) {
+    const params = textureDefaults(texture);
+    return { id, name, value, texture, shadeVariation, ...params };
   }
-  function colorValue(colorId) {
-    for (const manufacturer of MANUFACTURERS) {
-      const color = manufacturer.colors.find((candidate) => candidate.id === colorId);
-      if (color) {
-        return color.value;
-      }
+  function textureDefaults(texture) {
+    switch (texture) {
+      case "gloss_ceramic":
+        return { sheen: 0.72, grain: 0.08, clouding: 0.08, chipRate: 0 };
+      case "handmade_ceramic_matte":
+        return { sheen: 0.12, grain: 0.16, clouding: 0.26, chipRate: 0.03 };
+      case "handmade_ceramic_gloss":
+        return { sheen: 0.82, grain: 0.12, clouding: 0.24, chipRate: 0.02 };
+      case "encaustic_cement":
+        return { sheen: 0.02, grain: 0.38, clouding: 0.44, chipRate: 0.07 };
+      case "rustic_cotto":
+        return { sheen: 0.06, grain: 0.42, clouding: 0.48, chipRate: 0.1 };
+      case "saltillo_terracotta":
+        return { sheen: 0.08, grain: 0.52, clouding: 0.62, chipRate: 0.16 };
+      case "dimensional_porcelain":
+        return { sheen: 0.24, grain: 0.1, clouding: 0.08, chipRate: 0 };
+      case "matte_ceramic":
+        return { sheen: 0.08, grain: 0.1, clouding: 0.1, chipRate: 0.01 };
+      case "matte_porcelain":
+      default:
+        return { sheen: 0.04, grain: 0.08, clouding: 0.08, chipRate: 0 };
     }
-    return MANUFACTURERS[0].colors[0].value;
-  }
-  function darken(hex, amount) {
-    const normalized = hex.replace("#", "");
-    const value = Number.parseInt(normalized, 16);
-    const r = Math.max(0, (value >> 16 & 255) - amount);
-    const g = Math.max(0, (value >> 8 & 255) - amount);
-    const b = Math.max(0, (value & 255) - amount);
-    return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
-  }
-  function outlineColor(hex) {
-    return darken(hex, 34);
   }
 
   // src/keys.ts
@@ -183,19 +276,22 @@
     return state2.tileInches * SCALE;
   }
   function baseDrawPx(state2) {
-    return Math.max(1, tilePx(state2) - GROUT_PX);
+    return Math.max(1, tilePx(state2) - groutPx(state2));
+  }
+  function groutPx(state2) {
+    return Math.max(1, state2.groutJointSixteenths / 16 * SCALE);
   }
   function tacoSidePx(state2) {
-    return baseDrawPx(state2) / 4;
+    return Math.max(1, idealTacoSidePx(state2) - groutPx(state2));
+  }
+  function idealTacoSidePx(state2) {
+    return tilePx(state2) / 4;
   }
   function tacoHalfDiagonalPx(state2) {
     return tacoSidePx(state2) / Math.SQRT2;
   }
-  function crossNotchMouth(state2) {
-    return tacoHalfDiagonalPx(state2) / baseDrawPx(state2);
-  }
-  function crossNotchDepth(state2) {
-    return tacoHalfDiagonalPx(state2) / baseDrawPx(state2);
+  function idealTacoHalfDiagonalPx(state2) {
+    return idealTacoSidePx(state2) / Math.SQRT2;
   }
   function pointInRoom(state2, point) {
     const room = roomPx(state2);
@@ -349,7 +445,7 @@
   }
   function cornerInsetCenter(state2, col, row, corner) {
     const halfTile = tilePx(state2) / 2;
-    const centerOffset = HALF_GROUT_PX + tacoSidePx(state2) / 2;
+    const centerOffset = groutPx(state2) / 2 + tacoSidePx(state2) / 2;
     const x = corner === "nw" || corner === "sw" ? -halfTile + centerOffset : halfTile - centerOffset;
     const y = corner === "nw" || corner === "ne" ? -halfTile + centerOffset : halfTile - centerOffset;
     return cellLocalToScreen(state2, col, row, x, y);
@@ -576,6 +672,16 @@
       state2.cells.set(key, { ...tile, colorId });
     }
   }
+  function colorIdAt(state2, point, col, row) {
+    const taco = nearestTacoHit(state2, point, col, row);
+    if (taco?.type === "edge") {
+      return state2.edgeInsets.get(taco.key)?.colorId;
+    }
+    if (taco?.type === "corner") {
+      return state2.cornerInsets.get(taco.key)?.colorId;
+    }
+    return state2.cells.get(cellKey(col, row))?.colorId;
+  }
   function elementKeyAtPoint(state2, point, col, row) {
     const taco = nearestTacoHit(state2, point, col, row);
     if (taco) {
@@ -697,6 +803,164 @@
     }
   }
 
+  // src/color.ts
+  function paletteColor(colorId) {
+    for (const manufacturer of MANUFACTURERS) {
+      const color = manufacturer.colors.find((candidate) => candidate.id === colorId);
+      if (color) {
+        return color;
+      }
+    }
+    return MANUFACTURERS[0].colors[0];
+  }
+  function groutColorValue(colorId) {
+    return groutColor(colorId).value;
+  }
+  function groutColor(colorId) {
+    return GROUT_COLORS.find((candidate) => candidate.id === colorId) ?? GROUT_COLORS[0];
+  }
+  function darken(hex, amount) {
+    const normalized = hex.replace("#", "");
+    const value = Number.parseInt(normalized, 16);
+    const r = Math.max(0, (value >> 16 & 255) - amount);
+    const g = Math.max(0, (value >> 8 & 255) - amount);
+    const b = Math.max(0, (value & 255) - amount);
+    return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  // src/material.ts
+  function fillMaterialPath(ctx2, colorId, seed, bounds) {
+    const color = paletteColor(colorId);
+    const random = seededRandom(seed);
+    const variation = color.shadeVariation * 5;
+    const base = adjustLightness(color.value, (random() - 0.5) * variation);
+    ctx2.fillStyle = base;
+    ctx2.fill();
+    ctx2.save();
+    ctx2.clip();
+    drawClouding(ctx2, color, random, bounds);
+    drawGrain(ctx2, color, random, bounds);
+    drawStripes(ctx2, color, random, bounds);
+    drawChips(ctx2, color, random, bounds);
+    drawSheen(ctx2, color, bounds);
+    ctx2.restore();
+  }
+  function drawClouding(ctx2, color, random, bounds) {
+    if (color.clouding <= 0.01) {
+      return;
+    }
+    const count = Math.max(2, Math.round(2 + color.clouding * 8));
+    for (let i = 0; i < count; i += 1) {
+      const x = bounds.x + random() * bounds.width;
+      const y = bounds.y + random() * bounds.height;
+      const radius = Math.max(bounds.width, bounds.height) * (0.15 + random() * 0.35);
+      const gradient = ctx2.createRadialGradient(x, y, 0, x, y, radius);
+      const lighten = random() > 0.5;
+      const cloudColor = lighten ? "#ffffff" : darken(color.value, 42);
+      gradient.addColorStop(0, hexToRgba(cloudColor, 0.05 + color.clouding * 0.08));
+      gradient.addColorStop(1, hexToRgba(cloudColor, 0));
+      ctx2.fillStyle = gradient;
+      ctx2.fillRect(bounds.x - radius, bounds.y - radius, bounds.width + radius * 2, bounds.height + radius * 2);
+    }
+  }
+  function drawGrain(ctx2, color, random, bounds) {
+    if (color.grain <= 0.01) {
+      return;
+    }
+    const area = bounds.width * bounds.height;
+    const count = Math.min(180, Math.round(area / 90 * color.grain));
+    ctx2.fillStyle = hexToRgba(darken(color.value, 55), 0.08 + color.grain * 0.18);
+    for (let i = 0; i < count; i += 1) {
+      const size = 0.6 + random() * (1 + color.grain * 2);
+      ctx2.fillRect(bounds.x + random() * bounds.width, bounds.y + random() * bounds.height, size, size);
+    }
+  }
+  function drawStripes(ctx2, color, random, bounds) {
+    if (color.texture !== "saltillo_terracotta" && color.texture !== "rustic_cotto" && color.texture !== "natural_terracotta") {
+      return;
+    }
+    ctx2.save();
+    ctx2.globalAlpha = 0.07;
+    ctx2.strokeStyle = darken(color.value, 48);
+    ctx2.lineWidth = 2 + color.clouding * 3;
+    ctx2.translate(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    ctx2.rotate(-0.45 + random() * 0.25);
+    const span = bounds.width + bounds.height;
+    for (let y = -span; y <= span; y += 10 + random() * 9) {
+      ctx2.beginPath();
+      ctx2.moveTo(-span, y);
+      ctx2.lineTo(span, y + random() * 10 - 5);
+      ctx2.stroke();
+    }
+    ctx2.restore();
+  }
+  function drawChips(ctx2, color, random, bounds) {
+    if (color.chipRate <= 0.01) {
+      return;
+    }
+    const count = Math.round(color.chipRate * 18);
+    ctx2.fillStyle = hexToRgba(darken(color.value, 70), 0.18);
+    for (let i = 0; i < count; i += 1) {
+      const edge = Math.floor(random() * 4);
+      const x = edge === 1 ? bounds.x + bounds.width : edge === 3 ? bounds.x : bounds.x + random() * bounds.width;
+      const y = edge === 0 ? bounds.y : edge === 2 ? bounds.y + bounds.height : bounds.y + random() * bounds.height;
+      const radius = 1.5 + random() * (3 + color.chipRate * 8);
+      ctx2.beginPath();
+      ctx2.arc(x, y, radius, 0, Math.PI * 2);
+      ctx2.fill();
+    }
+  }
+  function drawSheen(ctx2, color, bounds) {
+    if (color.sheen <= 0.01) {
+      return;
+    }
+    const gradient = ctx2.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height);
+    gradient.addColorStop(0, "rgba(255,255,255,0)");
+    gradient.addColorStop(0.34, `rgba(255,255,255,${0.04 + color.sheen * 0.12})`);
+    gradient.addColorStop(0.47, `rgba(255,255,255,${0.13 + color.sheen * 0.28})`);
+    gradient.addColorStop(0.6, `rgba(255,255,255,${0.03 + color.sheen * 0.08})`);
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx2.fillStyle = gradient;
+    ctx2.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  }
+  function seededRandom(seed) {
+    let value = 2166136261;
+    for (let i = 0; i < seed.length; i += 1) {
+      value ^= seed.charCodeAt(i);
+      value = Math.imul(value, 16777619);
+    }
+    return () => {
+      value += 1831565813;
+      let next = value;
+      next = Math.imul(next ^ next >>> 15, next | 1);
+      next ^= next + Math.imul(next ^ next >>> 7, next | 61);
+      return ((next ^ next >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function adjustLightness(hex, amount) {
+    const { r, g, b } = hexToRgb(hex);
+    return rgbToHex(clampColor(r + amount), clampColor(g + amount), clampColor(b + amount));
+  }
+  function hexToRgba(hex, alpha) {
+    const { r, g, b } = hexToRgb(hex);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  function hexToRgb(hex) {
+    const normalized = hex.replace("#", "");
+    const value = Number.parseInt(normalized, 16);
+    return {
+      r: value >> 16 & 255,
+      g: value >> 8 & 255,
+      b: value & 255
+    };
+  }
+  function rgbToHex(r, g, b) {
+    return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+  }
+  function clampColor(value) {
+    return Math.max(0, Math.min(255, Math.round(value)));
+  }
+
   // src/render.ts
   function draw(state2, ctx2, canvas2) {
     canvas2.dataset.renderReady = "false";
@@ -707,6 +971,7 @@
     if (!state2.showGrid) {
       drawPlaceholderGrid(state2, ctx2);
     }
+    drawGroutUnderlays(state2, ctx2);
     drawPlacedTiles(state2, ctx2);
     drawInsets(state2, ctx2);
     if (state2.showGrid) {
@@ -744,6 +1009,36 @@
     }
     return signature;
   }
+  function drawGroutUnderlays(state2, ctx2) {
+    ctx2.save();
+    ctx2.fillStyle = groutColorValue(state2.groutColorId);
+    drawCellGroutUnderlays(state2, ctx2);
+    drawInsetGroutUnderlays(state2, ctx2);
+    ctx2.restore();
+  }
+  function drawCellGroutUnderlays(state2, ctx2) {
+    for (const [key, tile] of state2.cells) {
+      const { col, row } = parseCellKey(key);
+      if (!visibleCell(state2, col, row)) {
+        continue;
+      }
+      if (tile.kind === "star") {
+        drawStarSilhouette(state2, ctx2, col, row, tilePx(state2), idealTacoHalfDiagonalPx(state2));
+      } else {
+        drawCrossSilhouette(state2, ctx2, col, row, tile.kind, tilePx(state2), idealTacoHalfDiagonalPx(state2));
+      }
+    }
+  }
+  function drawInsetGroutUnderlays(state2, ctx2) {
+    for (const [key] of state2.edgeInsets) {
+      const edge = parseEdgeKey(key);
+      drawEdgeInsetSilhouette(state2, ctx2, edge.col, edge.row, edge.side, idealTacoSidePx(state2));
+    }
+    for (const [key] of state2.cornerInsets) {
+      const corner = parseCornerKey(key);
+      drawCornerInsetSilhouette(state2, ctx2, corner.col, corner.row, corner.corner, idealTacoSidePx(state2));
+    }
+  }
   function drawPlacedTiles(state2, ctx2) {
     drawTilesByKind(state2, ctx2, "cross");
     drawTilesByKind(state2, ctx2, "star");
@@ -754,44 +1049,49 @@
       if (!visibleCell(state2, col, row)) {
         continue;
       }
-      const color = colorValue(tile.colorId);
       if (tile.kind === "orthogonalCross" || tile.kind === "diagonalCross") {
         if (pass !== "cross") {
           continue;
         }
-        drawCross(state2, ctx2, col, row, tile.kind, color);
+        drawCross(state2, ctx2, col, row, tile.kind, tile.colorId);
       } else {
         if (pass !== "star") {
           continue;
         }
-        drawStar(state2, ctx2, col, row, color);
+        drawStar(state2, ctx2, col, row, tile.colorId);
       }
     }
   }
-  function drawCross(state2, ctx2, col, row, kind, color) {
+  function drawCross(state2, ctx2, col, row, kind, colorId) {
     const size = baseDrawPx(state2);
     ctx2.save();
     applyCellTransform(state2, ctx2, col, row);
     if (kind === "orthogonalCross") {
       ctx2.rotate(Math.PI / 4);
     }
-    ctx2.fillStyle = color;
-    ctx2.strokeStyle = outlineColor(color);
-    ctx2.lineWidth = 1;
-    traceDiagonalCrossPath(state2, ctx2, size);
-    ctx2.fill();
-    ctx2.stroke();
-    drawTileHighlight(ctx2, size);
+    traceDiagonalCrossPath(ctx2, size, tacoHalfDiagonalPx(state2));
+    fillMaterialPath(ctx2, colorId, `cross:${kind}:${col}:${row}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
     ctx2.restore();
   }
-  function traceDiagonalCrossPath(state2, ctx2, size) {
+  function drawCrossSilhouette(state2, ctx2, col, row, kind, size, notchHalfDiagonal) {
+    ctx2.save();
+    applyCellTransform(state2, ctx2, col, row);
+    if (kind === "orthogonalCross") {
+      ctx2.rotate(Math.PI / 4);
+    }
+    traceDiagonalCrossPath(ctx2, size, notchHalfDiagonal);
+    ctx2.fill();
+    ctx2.restore();
+  }
+  function traceDiagonalCrossPath(ctx2, size, notchHalfDiagonal) {
     const half = size / 2;
     const x = (value) => value * size - half;
     const y = (value) => value * size - half;
-    const mouthStart = 0.5 - crossNotchMouth(state2);
-    const mouthEnd = 0.5 + crossNotchMouth(state2);
-    const inward = crossNotchDepth(state2);
-    const outward = 1 - crossNotchDepth(state2);
+    const notch = notchHalfDiagonal / size;
+    const mouthStart = 0.5 - notch;
+    const mouthEnd = 0.5 + notch;
+    const inward = notch;
+    const outward = 1 - notch;
     ctx2.beginPath();
     ctx2.moveTo(x(0), y(0));
     ctx2.lineTo(x(mouthStart), y(0));
@@ -811,15 +1111,26 @@
     ctx2.lineTo(x(0), y(mouthStart));
     ctx2.closePath();
   }
-  function drawStar(state2, ctx2, col, row, color) {
+  function drawStar(state2, ctx2, col, row, colorId) {
     const body = baseDrawPx(state2) / 2;
     const point = body + tacoHalfDiagonalPx(state2);
     const pointBase = tacoHalfDiagonalPx(state2);
     ctx2.save();
     applyCellTransform(state2, ctx2, col, row);
-    ctx2.fillStyle = color;
-    ctx2.strokeStyle = outlineColor(color);
-    ctx2.lineWidth = 1.2;
+    traceStarPath(ctx2, body, point, pointBase);
+    fillMaterialPath(ctx2, colorId, `star:${col}:${row}:${colorId}`, { x: -point, y: -point, width: point * 2, height: point * 2 });
+    ctx2.restore();
+  }
+  function drawStarSilhouette(state2, ctx2, col, row, size, pointHalfDiagonal) {
+    const body = size / 2;
+    const point = body + pointHalfDiagonal;
+    ctx2.save();
+    applyCellTransform(state2, ctx2, col, row);
+    traceStarPath(ctx2, body, point, pointHalfDiagonal);
+    ctx2.fill();
+    ctx2.restore();
+  }
+  function traceStarPath(ctx2, body, point, pointBase) {
     ctx2.beginPath();
     ctx2.moveTo(-body, -body);
     ctx2.lineTo(-pointBase, -body);
@@ -838,44 +1149,53 @@
     ctx2.lineTo(-point, 0);
     ctx2.lineTo(-body, -pointBase);
     ctx2.closePath();
-    ctx2.fill();
-    ctx2.stroke();
-    ctx2.restore();
   }
   function drawInsets(state2, ctx2) {
     for (const [key, inset] of state2.edgeInsets) {
       const edge = parseEdgeKey(key);
-      drawEdgeInset(state2, ctx2, edge.col, edge.row, edge.side, colorValue(inset.colorId));
+      drawEdgeInset(state2, ctx2, edge.col, edge.row, edge.side, inset.colorId);
     }
     for (const [key, inset] of state2.cornerInsets) {
       const corner = parseCornerKey(key);
-      drawCornerInset(state2, ctx2, corner.col, corner.row, corner.corner, colorValue(inset.colorId));
+      drawCornerInset(state2, ctx2, corner.col, corner.row, corner.corner, inset.colorId);
     }
   }
-  function drawEdgeInset(state2, ctx2, col, row, side, color) {
+  function drawEdgeInset(state2, ctx2, col, row, side, colorId) {
     const point = edgeMidpoint(state2, col, row, side);
     const size = tacoSidePx(state2);
     ctx2.save();
     ctx2.translate(point.x, point.y);
     ctx2.rotate(layoutRotation(state2) + Math.PI / 4);
-    ctx2.fillStyle = color;
-    ctx2.strokeStyle = outlineColor(color);
-    ctx2.lineWidth = 1;
-    ctx2.fillRect(-size / 2, -size / 2, size, size);
-    ctx2.strokeRect(-size / 2, -size / 2, size, size);
+    ctx2.beginPath();
+    ctx2.rect(-size / 2, -size / 2, size, size);
+    fillMaterialPath(ctx2, colorId, `edge:${col}:${row}:${side}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
     ctx2.restore();
   }
-  function drawCornerInset(state2, ctx2, col, row, corner, color) {
+  function drawEdgeInsetSilhouette(state2, ctx2, col, row, side, size) {
+    const point = edgeMidpoint(state2, col, row, side);
+    ctx2.save();
+    ctx2.translate(point.x, point.y);
+    ctx2.rotate(layoutRotation(state2) + Math.PI / 4);
+    ctx2.fillRect(-size / 2, -size / 2, size, size);
+    ctx2.restore();
+  }
+  function drawCornerInset(state2, ctx2, col, row, corner, colorId) {
     const size = tacoSidePx(state2);
     const center = cornerInsetCenter(state2, col, row, corner);
     ctx2.save();
     ctx2.translate(center.x, center.y);
     ctx2.rotate(layoutRotation(state2));
-    ctx2.fillStyle = color;
-    ctx2.strokeStyle = outlineColor(color);
-    ctx2.lineWidth = 1;
+    ctx2.beginPath();
+    ctx2.rect(-size / 2, -size / 2, size, size);
+    fillMaterialPath(ctx2, colorId, `corner:${col}:${row}:${corner}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
+    ctx2.restore();
+  }
+  function drawCornerInsetSilhouette(state2, ctx2, col, row, corner, size) {
+    const center = cornerInsetCenter(state2, col, row, corner);
+    ctx2.save();
+    ctx2.translate(center.x, center.y);
+    ctx2.rotate(layoutRotation(state2));
     ctx2.fillRect(-size / 2, -size / 2, size, size);
-    ctx2.strokeRect(-size / 2, -size / 2, size, size);
     ctx2.restore();
   }
   function drawPlaceholderGrid(state2, ctx2) {
@@ -918,18 +1238,6 @@
     ctx2.strokeRect(2, 2, room.width - 4, room.height - 4);
     ctx2.restore();
   }
-  function drawTileHighlight(ctx2, size) {
-    const half = size / 2;
-    ctx2.save();
-    ctx2.globalAlpha = 0.18;
-    ctx2.strokeStyle = "#ffffff";
-    ctx2.lineWidth = 1;
-    ctx2.beginPath();
-    ctx2.moveTo(-half + size * 0.18, -half + size * 0.16);
-    ctx2.lineTo(-half + size * 0.72, -half + size * 0.16);
-    ctx2.stroke();
-    ctx2.restore();
-  }
   function applyCellTransform(state2, ctx2, col, row) {
     const center = cellLocalToScreen(state2, col, row, 0, 0);
     ctx2.translate(center.x, center.y);
@@ -956,6 +1264,8 @@
     next.tileInches = validTileInches(params.get("ts")) ?? next.tileInches;
     next.offsetXInches = validHalfInch(params.get("ox")) ?? next.offsetXInches;
     next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
+    next.groutColorId = validGroutColor(params.get("gc")) ?? next.groutColorId;
+    next.groutJointSixteenths = validGroutJoint(params.get("gj")) ?? next.groutJointSixteenths;
     next.brush = validBrush(params.get("b")) ?? next.brush;
     next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
     next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
@@ -976,6 +1286,8 @@
       offsetXInches: DEFAULT_STATE.offsetXInches,
       offsetYInches: DEFAULT_STATE.offsetYInches,
       zoom: DEFAULT_STATE.zoom,
+      groutColorId: DEFAULT_STATE.groutColorId,
+      groutJointSixteenths: DEFAULT_STATE.groutJointSixteenths,
       brush: DEFAULT_STATE.brush,
       manufacturerId: DEFAULT_STATE.manufacturerId,
       colorId: DEFAULT_STATE.colorId,
@@ -1030,6 +1342,8 @@
     params.set("ts", String(state2.tileInches));
     params.set("ox", String(state2.offsetXInches));
     params.set("oy", String(state2.offsetYInches));
+    params.set("gc", state2.groutColorId);
+    params.set("gj", String(state2.groutJointSixteenths));
     params.set("b", state2.brush);
     params.set("mf", state2.manufacturerId);
     params.set("c", state2.colorId);
@@ -1064,11 +1378,21 @@
     const manufacturer = MANUFACTURERS.find((candidate) => candidate.id === manufacturerId);
     return manufacturer?.colors.some((color) => color.id === id) ? id ?? void 0 : void 0;
   }
+  function validGroutColor(id) {
+    return GROUT_COLORS.some((color) => color.id === id) ? id ?? void 0 : void 0;
+  }
+  function validGroutJoint(value) {
+    if (value === null) {
+      return void 0;
+    }
+    const next = Number(value);
+    return Number.isInteger(next) && GROUT_JOINT_OPTIONS.includes(next) ? next : void 0;
+  }
   function validMode(value) {
     return value === "straight" || value === "diagonal" ? value : void 0;
   }
   function validBrush(value) {
-    return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" || value === "colorOnly" || value === "grab" || value === "erase" ? value : void 0;
+    return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" || value === "colorOnly" || value === "colorPicker" || value === "grab" || value === "erase" ? value : void 0;
   }
   function parseTileKind(value) {
     if (value === "orthogonalCross" || value === "diagonalCross" || value === "star") {
@@ -1119,16 +1443,21 @@
   var tileSizeSelect = requiredElement(document.querySelector("#tile-size"), "tile size select");
   var roomSpec = requiredElement(document.querySelector("#room-spec"), "room spec");
   var brushInputs = Array.from(document.querySelectorAll("input[name='brush']"));
-  var manufacturerSelect = requiredElement(document.querySelector("#manufacturer"), "manufacturer select");
   var palette = requiredElement(document.querySelector("#palette"), "palette");
+  var groutPalette = requiredElement(document.querySelector("#grout-palette"), "grout palette");
+  var groutJointSelect = requiredElement(document.querySelector("#grout-joint"), "grout joint select");
   var clearButton = requiredElement(document.querySelector("#clear"), "clear button");
   var layoutErrors = requiredElement(document.querySelector("#layout-errors"), "layout error panel");
   var ctx = requiredElement(canvas.getContext("2d"), "canvas 2D context");
+  var swatchTooltip = document.createElement("div");
+  swatchTooltip.className = "swatch-tooltip";
+  document.body.append(swatchTooltip);
   var state = loadState(workspace);
   var dragInteraction;
   var lastPaintKey = "";
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
+  var materialSwatchCache = /* @__PURE__ */ new Map();
   setupCanvas();
   setupControls();
   syncControls();
@@ -1151,11 +1480,11 @@
     return element;
   }
   function setupControls() {
-    for (const manufacturer of MANUFACTURERS) {
+    for (const groutJoint of GROUT_JOINT_OPTIONS) {
       const option = document.createElement("option");
-      option.value = manufacturer.id;
-      option.textContent = manufacturer.name;
-      manufacturerSelect.append(option);
+      option.value = String(groutJoint);
+      option.textContent = `${groutJoint}/16"`;
+      groutJointSelect.append(option);
     }
     modeInputs.forEach((input) => {
       input.addEventListener("change", () => {
@@ -1186,11 +1515,10 @@
         }
       });
     });
-    manufacturerSelect.addEventListener("change", () => {
-      state.manufacturerId = manufacturerSelect.value;
-      state.colorId = currentManufacturer(state).colors[0]?.id ?? "bone";
-      renderPalette();
+    groutJointSelect.addEventListener("change", () => {
+      state.groutJointSixteenths = validGroutJoint(groutJointSelect.value) ?? state.groutJointSixteenths;
       updateUrl(state);
+      render();
     });
     clearButton.addEventListener("click", () => {
       state.cells.clear();
@@ -1215,8 +1543,9 @@
     brushInputs.forEach((input) => {
       input.checked = input.value === state.brush;
     });
-    manufacturerSelect.value = state.manufacturerId;
     renderPalette();
+    renderGroutPalette();
+    syncGroutControls();
     syncSpecs();
     updateCanvasCursor();
   }
@@ -1225,21 +1554,127 @@
   }
   function renderPalette() {
     palette.innerHTML = "";
-    for (const color of currentManufacturer(state).colors) {
+    palette.classList.toggle("is-picking", state.brush === "colorPicker");
+    const picker = document.createElement("button");
+    picker.className = "swatch color-picker-swatch";
+    picker.type = "button";
+    picker.dataset.tooltip = "Pick color";
+    picker.setAttribute("aria-label", "Pick color");
+    picker.setAttribute("aria-pressed", String(state.brush === "colorPicker"));
+    picker.addEventListener("click", () => {
+      state.brush = "colorPicker";
+      syncBrushControls();
+      renderPalette();
+      updateUrl(state);
+      updateCanvasCursor();
+    });
+    attachSwatchTooltip(picker);
+    palette.append(picker);
+    for (const manufacturer of MANUFACTURERS) {
+      const marker = document.createElement("div");
+      marker.className = "palette-manufacturer";
+      marker.dataset.tooltip = manufacturer.name;
+      marker.textContent = manufacturer.name.slice(0, 1);
+      attachSwatchTooltip(marker);
+      palette.append(marker);
+      for (const color of manufacturer.colors) {
+        const swatch = document.createElement("button");
+        swatch.className = "swatch";
+        swatch.type = "button";
+        swatch.style.backgroundColor = color.value;
+        swatch.style.backgroundImage = materialSwatchBackground(color.id);
+        const label = `${color.name}
+(${color.texture.replaceAll("_", " ")})
+by ${manufacturer.name}`;
+        swatch.dataset.tooltip = label;
+        swatch.setAttribute("aria-label", label);
+        swatch.setAttribute("aria-pressed", String(state.brush !== "colorPicker" && color.id === state.colorId));
+        swatch.addEventListener("click", () => {
+          selectColor(manufacturer.id, color.id);
+          if (state.brush === "colorPicker") {
+            switchToColorOnly();
+          }
+          renderPalette();
+          updateUrl(state);
+        });
+        attachSwatchTooltip(swatch);
+        palette.append(swatch);
+      }
+    }
+  }
+  function selectColor(manufacturerId, colorId) {
+    state.manufacturerId = manufacturerId;
+    state.colorId = colorId;
+  }
+  function switchToColorOnly() {
+    state.brush = "colorOnly";
+    syncBrushControls();
+    updateCanvasCursor();
+  }
+  function syncBrushControls() {
+    brushInputs.forEach((input) => {
+      input.checked = input.value === state.brush;
+    });
+  }
+  function materialSwatchBackground(colorId) {
+    const cached = materialSwatchCache.get(colorId);
+    if (cached) {
+      return cached;
+    }
+    const size = 64;
+    const swatchCanvas = document.createElement("canvas");
+    swatchCanvas.width = size;
+    swatchCanvas.height = size;
+    const swatchCtx = requiredElement(swatchCanvas.getContext("2d"), "swatch canvas context");
+    swatchCtx.beginPath();
+    swatchCtx.rect(0, 0, size, size);
+    fillMaterialPath(swatchCtx, colorId, `swatch:${colorId}`, { x: 0, y: 0, width: size, height: size });
+    const image = `url(${swatchCanvas.toDataURL("image/png")})`;
+    materialSwatchCache.set(colorId, image);
+    return image;
+  }
+  function renderGroutPalette() {
+    groutPalette.innerHTML = "";
+    for (const groutColor2 of GROUT_COLORS) {
       const swatch = document.createElement("button");
       swatch.className = "swatch";
       swatch.type = "button";
-      swatch.style.background = color.value;
-      swatch.title = color.name;
-      swatch.setAttribute("aria-label", color.name);
-      swatch.setAttribute("aria-pressed", String(color.id === state.colorId));
+      swatch.style.background = groutColor2.value;
+      swatch.dataset.tooltip = groutColor2.name;
+      swatch.setAttribute("aria-label", groutColor2.name);
+      swatch.setAttribute("aria-pressed", String(groutColor2.id === state.groutColorId));
       swatch.addEventListener("click", () => {
-        state.colorId = color.id;
-        renderPalette();
+        state.groutColorId = groutColor2.id;
+        renderGroutPalette();
         updateUrl(state);
+        render();
       });
-      palette.append(swatch);
+      attachSwatchTooltip(swatch);
+      groutPalette.append(swatch);
     }
+  }
+  function attachSwatchTooltip(swatch) {
+    swatch.addEventListener("mouseenter", () => showSwatchTooltip(swatch));
+    swatch.addEventListener("mouseleave", hideSwatchTooltip);
+    swatch.addEventListener("focus", () => showSwatchTooltip(swatch));
+    swatch.addEventListener("blur", hideSwatchTooltip);
+  }
+  function showSwatchTooltip(swatch) {
+    const text = swatch.dataset.tooltip;
+    if (!text) {
+      return;
+    }
+    const rect = swatch.getBoundingClientRect();
+    swatchTooltip.textContent = text;
+    swatchTooltip.style.left = `${rect.right - 4}px`;
+    swatchTooltip.style.top = `${rect.top + 4}px`;
+    swatchTooltip.classList.add("is-visible");
+  }
+  function hideSwatchTooltip() {
+    swatchTooltip.classList.remove("is-visible");
+  }
+  function syncGroutControls() {
+    groutJointSelect.value = String(state.groutJointSixteenths);
   }
   function handlePointerDown(event) {
     lastPaintKey = "";
@@ -1270,6 +1705,10 @@
         startOffsetYInches: state.offsetYInches
       };
       updateCanvasCursor(point);
+      return;
+    }
+    if (state.brush === "colorPicker") {
+      pickColorFromPointer(point);
       return;
     }
     dragInteraction = { type: "paint", pointerId: event.pointerId };
@@ -1356,6 +1795,20 @@
     updateUrl(state);
     render();
   }
+  function pickColorFromPointer(point) {
+    const cell = cellFromPoint(state, point);
+    const colorId = colorIdAt(state, point, cell.col, cell.row);
+    if (!colorId) {
+      return;
+    }
+    selectColor(manufacturerIdForColor(colorId), colorId);
+    switchToColorOnly();
+    renderPalette();
+    updateUrl(state);
+  }
+  function manufacturerIdForColor(colorId) {
+    return MANUFACTURERS.find((manufacturer) => manufacturer.colors.some((color) => color.id === colorId))?.id ?? state.manufacturerId;
+  }
   function updateCanvasCursor(point) {
     if (dragInteraction?.type === "grab") {
       canvas.style.cursor = "grabbing";
@@ -1370,6 +1823,8 @@
       canvas.style.cursor = resizeCursor(handle);
     } else if (state.brush === "grab") {
       canvas.style.cursor = "grab";
+    } else if (state.brush === "colorPicker") {
+      canvas.style.cursor = "zoom-in";
     } else {
       canvas.style.cursor = "crosshair";
     }
