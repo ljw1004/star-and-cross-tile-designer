@@ -21,11 +21,23 @@ Goal: a single-page app, entirely client-side, for users to experiment with bath
    - Justs like pixel plainting programs, there'll be a "dropper" tool which lets you read a tile. It will read both shape (diagonal cross, orthogonal cross, star, taco) and texture/color and switch to those. Then it will straight away change into painting mode.
 5. As well as painting, there'll be a "grab" tool. This will let you move the tiles within the room with granularity of 0.5". This is so users can experiment with different offsets.
 6. Everything (current choice of options, current layout of tiles, offset, ...) will be encoded compactly in the URL query params, which gets live-updated. There's no provision for "project management". If a user wants to bookmark, then they can copy+paste the URL with query parameters. They can have multiple tabs with different settings.
-7. There'll be a "3d control" that lets us switch to a 3d look instead of top-down.
 
 ## Architecture
 
-HTML+CSS+Canvas+Typescript, opened directly in the browser. No frameworks. Compile with tsc. My current assumption is that we can fit this all into a single .ts file of about 1000 lines.
+HTML+CSS+Canvas+Typescript, opened directly in the browser. No frameworks. `npm run build` uses `tsc --noEmit` for type checking and esbuild to bundle `src/main.ts` into the single browser file `dist/main.js`.
+
+Source file index:
+
+- `src/main.ts`: Wires DOM controls, pointer/wheel interactions, app state updates, URL updates, and render calls.
+- `src/types.ts`: Defines shared TypeScript types for tiles, app state, geometry, interactions, and conflicts.
+- `src/constants.ts`: Holds defaults, layout limits, scale/grout constants, side/corner lists, and the dummy manufacturer palette.
+- `src/state.ts`: Loads state from URL parameters, validates query values, parses/serializes tile layout data, and writes the URL.
+- `src/geometry.ts`: Converts between room, grid, cell, edge, and screen coordinates, including zoom, resize hit-testing, and tile geometry dimensions.
+- `src/keys.ts`: Creates and parses stable map keys for cells, edge tacos, corner tacos, neighbors, and canonical shared edges.
+- `src/model.ts`: Applies painting operations to state, including conflict-fixing tile placement, erase, color-only, taco placement, and automatic taco pruning.
+- `src/conflicts.ts`: Analyzes the current layout for impossible tile/taco conflicts and produces user-facing conflict messages.
+- `src/render.ts`: Draws the room, placeholder grid, tiles, tacos, outlines, highlights, and conflict banner into the canvas/DOM.
+- `src/color.ts`: Resolves color IDs and computes tile outline colors.
 
 ## How tiles fit together
 
@@ -57,6 +69,6 @@ Note that tiles can overlap placeholders. For instance the star overlaps all adj
 
 1. MVP: A fixed room, fixed tile size, a toggle for diagonal/straight, basic URL encoding, and lets you paint from a dummy manufacturer palette.
 2. Sizes: You can alter room size by dragging its edges, and drag the tile offset by using the grabber, and alter tile size
-3. Rendering: we put in real manufacturers, with palette+texture, and real grout. Let the user chose grout width. See RENDER.md
-4. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can. Make it touch-friendly for use on an ipad or iphone.
-
+3. Rendering: we put in real manufacturers, with palette+texture, and real grout. See RENDER.md
+4. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can. Add a material-picker in the color dropdown, which picks up a material and switches the manufacturer dropdown to that one. We'll use the user-facing name "color" even though it truly refers to color+texture.
+5. Touch: make it touch-friendly for use on an ipad or iphone.

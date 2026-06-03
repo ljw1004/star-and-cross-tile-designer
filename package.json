@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit && esbuild src/main.ts --bundle --format=iife --target=es2022 --outfile=dist/main.js",
     "render-tests": "node scripts/render-tests.mjs",
-    "watch": "tsc --watch"
+    "watch": "tsc --noEmit --watch"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "playwright": "^1.58.2",
     "typescript": "^5.8.3"
   }
