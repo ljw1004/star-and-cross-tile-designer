@@ -1,0 +1,14 @@
+{
+  "name": "star-and-cross-tiles",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "render-tests": "node scripts/render-tests.mjs",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

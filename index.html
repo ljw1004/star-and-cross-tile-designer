@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Star and Cross Tiles</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <aside class="panel">
+      <h1>Star and Cross Tiles</h1>
+      <div id="layout-errors" class="layout-errors" role="alert" aria-live="polite"></div>
+
+      <section class="control-group">
+        <h2>Layout</h2>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="straight" checked>
+          <span>Straight</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="diagonal">
+          <span>Diagonal</span>
+        </label>
+        <label class="radio-row">
+          <input type="checkbox" id="show-grid">
+          <span>Show grid</span>
+        </label>
+        <dl class="specs">
+          <div>
+            <dt>Room</dt>
+            <dd>60&quot; x 96&quot;</dd>
+          </div>
+          <div>
+            <dt>Placeholder</dt>
+            <dd>8&quot; x 8&quot;</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="control-group">
+        <h2>Brush</h2>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="orthogonalCross" checked>
+          <span>Orthogonal cross</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="diagonalCross">
+          <span>Diagonal cross</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="star">
+          <span>Star</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="inset">
+          <span>Taco</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="colorOnly">
+          <span>Color only</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="brush" value="erase">
+          <span>Erase</span>
+        </label>
+      </section>
+
+      <section class="control-group">
+        <h2>Color</h2>
+        <label class="select-label" for="manufacturer">Manufacturer</label>
+        <select id="manufacturer"></select>
+        <div id="palette" class="palette" aria-label="Color palette"></div>
+      </section>
+
+      <section class="control-group">
+        <button id="clear" class="button" type="button">Clear tiles</button>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <canvas id="room" aria-label="Tile painting canvas"></canvas>
+    </main>
+
+    <script defer src="dist/main.js"></script>
+  </body>
+</html>
