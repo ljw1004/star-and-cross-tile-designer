@@ -31,7 +31,7 @@ Source file index:
 - `src/main.ts`: Wires DOM controls, pointer/wheel interactions, app state updates, URL updates, and render calls.
 - `src/types.ts`: Defines shared TypeScript types for tiles, app state, geometry, interactions, and conflicts.
 - `src/constants.ts`: Holds defaults, layout limits, scale constants, side/corner lists, real manufacturer palettes, material categories, and grout options.
-- `src/state.ts`: Loads state from URL parameters, validates query values, parses/serializes tile layout data, and writes the URL.
+- `src/state.ts`: Loads state from the compact URL payload, validates values, serializes layout data, and writes queued URL updates.
 - `src/geometry.ts`: Converts between room, grid, cell, edge, and screen coordinates, including zoom, resize hit-testing, and tile geometry dimensions.
 - `src/keys.ts`: Creates and parses stable map keys for cells, edge tacos, corner tacos, neighbors, and canonical shared edges.
 - `src/model.ts`: Applies painting operations to state, including conflict-fixing tile placement, erase, color-only, taco placement, and automatic taco pruning.

@@ -13,7 +13,6 @@
   var MAX_ZOOM = 8;
   var ZOOM_FACTOR = 1.12;
   var SCALE = 8;
-  var URL_VERSION = "1";
   var SIDES = ["n", "e", "s", "w"];
   var CORNERS = ["nw", "ne", "se", "sw"];
   var DEFAULT_GROUT_COLOR_ID = "warm-white";
@@ -1490,34 +1489,25 @@
   }
 
   // src/state.ts
-  function loadState(workspace2) {
+  var pendingSnapshot = "";
+  var lastWrittenSnapshot = "";
+  var isWritingUrl = false;
+  var debounceTimer;
+  async function loadState(workspace2) {
     const params = new URLSearchParams(window.location.search);
     const next = cloneDefaultState();
-    next.mode = validMode(params.get("m")) ?? next.mode;
-    next.showGrid = params.get("g") === "1";
-    next.roomWidthInches = validRoomWidth(params.get("rw")) ?? next.roomWidthInches;
-    next.roomHeightInches = validRoomHeight(params.get("rh")) ?? next.roomHeightInches;
-    next.tileInches = validTileInches(params.get("ts")) ?? next.tileInches;
-    next.offsetXInches = validHalfInch(params.get("ox")) ?? next.offsetXInches;
-    next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
-    next.groutColorId = validGroutColor(params.get("gc")) ?? next.groutColorId;
-    next.groutJointSixteenths = validGroutJoint(params.get("gj")) ?? next.groutJointSixteenths;
-    const parsedTool = validTool(params.get("tl"));
-    if (parsedTool) {
-      next.tool = parsedTool;
-      next.paintShape = parsedTool === "paint" && !params.has("ps") ? void 0 : next.paintShape;
-    }
-    next.paintShape = validPaintShape(params.get("ps")) ?? next.paintShape;
-    if (next.tool !== "paint") {
-      next.paintShape = void 0;
-    }
-    next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
-    next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
-    const layout = params.get("l");
-    if (layout) {
-      parseLayout(layout, next);
+    const encoded = params.get("s");
+    if (encoded) {
+      try {
+        const compact = JSON.parse(await decodeStateParam(encoded));
+        console.log("Expanded URL tile state", compact);
+        applyCompactState(compact, next);
+      } catch (error) {
+        console.warn("Unable to decode tile state URL; using defaults.", error);
+      }
     }
     next.zoom = initialZoomForRoom(workspace2, next.roomWidthInches, next.roomHeightInches);
+    lastWrittenSnapshot = JSON.stringify(compactState(next));
     return next;
   }
   function cloneDefaultState() {
@@ -1541,83 +1531,226 @@
       cornerInsets: /* @__PURE__ */ new Map()
     };
   }
-  function parseLayout(layout, next) {
-    const decoded = decodeURIComponent(layout);
-    if (!decoded) {
-      return;
+  function updateUrl(state2) {
+    pendingSnapshot = JSON.stringify(compactState(state2));
+    if (debounceTimer !== void 0) {
+      window.clearTimeout(debounceTimer);
     }
-    for (const item of decoded.split(";")) {
-      const parts = item.split(",");
-      if (parts[0] === "t" && parts.length === 5) {
-        const col = Number(parts[1]);
-        const row = Number(parts[2]);
-        const kind = parseTileKind(parts[3]);
-        const colorId = parts[4];
-        if (Number.isInteger(col) && Number.isInteger(row) && kind) {
-          next.cells.set(cellKey(col, row), { kind, colorId });
-        }
-      } else if (parts[0] === "e" && parts.length === 5) {
-        const col = Number(parts[1]);
-        const row = Number(parts[2]);
-        const side = parts[3];
-        const colorId = parts[4];
-        if (Number.isInteger(col) && Number.isInteger(row) && validSide(side)) {
-          next.edgeInsets.set(canonicalEdgeKey(col, row, side), { colorId });
-        }
-      } else if (parts[0] === "k" && parts.length === 5) {
-        const col = Number(parts[1]);
-        const row = Number(parts[2]);
-        const corner = parts[3];
-        const colorId = parts[4];
-        if (Number.isInteger(col) && Number.isInteger(row) && validCorner(corner)) {
-          next.cornerInsets.set(cornerKey(col, row, corner), { colorId });
-        }
+    debounceTimer = window.setTimeout(() => {
+      debounceTimer = void 0;
+      void processUrlWriteQueue();
+    }, 10);
+  }
+  function applyCompactState(compact, next) {
+    if (compact.v !== 2) {
+      throw new Error(`Unsupported compressed state version ${String(compact.v)}.`);
+    }
+    next.mode = compact.m === "d" ? "diagonal" : "straight";
+    next.showGrid = compact.q === 1;
+    next.roomWidthInches = validRoomWidth(String(compact.rw)) ?? next.roomWidthInches;
+    next.roomHeightInches = validRoomHeight(String(compact.rh)) ?? next.roomHeightInches;
+    next.tileInches = validTileInches(String(compact.ts)) ?? next.tileInches;
+    next.offsetXInches = validHalfInch(String(compact.ox)) ?? next.offsetXInches;
+    next.offsetYInches = validHalfInch(String(compact.oy)) ?? next.offsetYInches;
+    next.groutColorId = validGroutColor(compact.gc) ?? next.groutColorId;
+    next.groutJointSixteenths = validGroutJoint(String(compact.gj)) ?? next.groutJointSixteenths;
+    next.tool = toolFromCode(compact.tl) ?? next.tool;
+    next.paintShape = next.tool === "paint" ? paintShapeFromCode(compact.ps) : void 0;
+    next.manufacturerId = validManufacturer(compact.mf) ?? next.manufacturerId;
+    next.colorId = validColor(next.manufacturerId, compact.c) ?? next.colorId;
+    const colors = compact.cs ?? [];
+    next.cells.clear();
+    next.edgeInsets.clear();
+    next.cornerInsets.clear();
+    for (const record of compact.a ?? []) {
+      const [col, row, kindCode, colorIndex] = record;
+      const kind = tileKindFromCode(kindCode);
+      const colorId = colors[colorIndex];
+      if (Number.isInteger(col) && Number.isInteger(row) && kind && colorId) {
+        next.cells.set(cellKey(col, row), { kind, colorId });
+      }
+    }
+    for (const record of compact.e ?? []) {
+      const [col, row, side, colorIndex] = record;
+      const colorId = colors[colorIndex];
+      if (Number.isInteger(col) && Number.isInteger(row) && validSide(side) && colorId) {
+        next.edgeInsets.set(canonicalEdgeKey(col, row, side), { colorId });
+      }
+    }
+    for (const record of compact.k ?? []) {
+      const [col, row, corner, colorIndex] = record;
+      const colorId = colors[colorIndex];
+      if (Number.isInteger(col) && Number.isInteger(row) && validCorner(corner) && colorId) {
+        next.cornerInsets.set(cornerKey(col, row, corner), { colorId });
       }
     }
   }
-  function updateUrl(state2) {
-    const params = new URLSearchParams();
-    params.set("v", URL_VERSION);
-    params.set("m", state2.mode);
+  function compactState(state2) {
+    const colorIndexes = /* @__PURE__ */ new Map();
+    const colors = [];
+    const colorIndex = (colorId) => {
+      const existing = colorIndexes.get(colorId);
+      if (existing !== void 0) {
+        return existing;
+      }
+      const next = colors.length;
+      colors.push(colorId);
+      colorIndexes.set(colorId, next);
+      return next;
+    };
+    const compact = {
+      v: 2,
+      m: state2.mode === "diagonal" ? "d" : "s",
+      rw: state2.roomWidthInches,
+      rh: state2.roomHeightInches,
+      ts: state2.tileInches,
+      ox: state2.offsetXInches,
+      oy: state2.offsetYInches,
+      gc: state2.groutColorId,
+      gj: state2.groutJointSixteenths,
+      tl: toolCode(state2.tool),
+      mf: state2.manufacturerId,
+      c: state2.colorId
+    };
     if (state2.showGrid) {
-      params.set("g", "1");
+      compact.q = 1;
     }
-    params.set("rw", String(state2.roomWidthInches));
-    params.set("rh", String(state2.roomHeightInches));
-    params.set("ts", String(state2.tileInches));
-    params.set("ox", String(state2.offsetXInches));
-    params.set("oy", String(state2.offsetYInches));
-    params.set("gc", state2.groutColorId);
-    params.set("gj", String(state2.groutJointSixteenths));
-    params.set("tl", state2.tool);
     if (state2.tool === "paint" && state2.paintShape) {
-      params.set("ps", state2.paintShape);
+      compact.ps = paintShapeCode(state2.paintShape);
     }
-    params.set("mf", state2.manufacturerId);
-    params.set("c", state2.colorId);
-    const layout = serializeLayout(state2);
-    if (layout) {
-      params.set("l", layout);
-    }
-    const query = params.toString();
-    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
-    window.history.replaceState(null, "", nextUrl);
-  }
-  function serializeLayout(state2) {
-    const items = [];
+    const cells = [];
     for (const [key, tile] of state2.cells) {
       const { col, row } = parseCellKey(key);
-      items.push(["t", col, row, tile.kind, tile.colorId].join(","));
+      cells.push([col, row, tileKindCode(tile.kind), colorIndex(tile.colorId)]);
     }
+    if (cells.length > 0) {
+      compact.a = cells;
+    }
+    const edgeInsets = [];
     for (const [key, inset] of state2.edgeInsets) {
       const edge = parseEdgeKey(key);
-      items.push(["e", edge.col, edge.row, edge.side, inset.colorId].join(","));
+      edgeInsets.push([edge.col, edge.row, edge.side, colorIndex(inset.colorId)]);
     }
+    if (edgeInsets.length > 0) {
+      compact.e = edgeInsets;
+    }
+    const cornerInsets = [];
     for (const [key, inset] of state2.cornerInsets) {
       const corner = parseCornerKey(key);
-      items.push(["k", corner.col, corner.row, corner.corner, inset.colorId].join(","));
+      cornerInsets.push([corner.col, corner.row, corner.corner, colorIndex(inset.colorId)]);
     }
-    return items.join(";");
+    if (cornerInsets.length > 0) {
+      compact.k = cornerInsets;
+    }
+    if (colors.length > 0) {
+      compact.cs = colors;
+    }
+    return compact;
+  }
+  async function processUrlWriteQueue() {
+    if (isWritingUrl || pendingSnapshot === "" || pendingSnapshot === lastWrittenSnapshot) {
+      return;
+    }
+    isWritingUrl = true;
+    const snapshot = pendingSnapshot;
+    try {
+      const encoded = await encodeStateParam(snapshot);
+      if (pendingSnapshot === snapshot) {
+        const nextUrl = `${window.location.pathname}?s=${encoded}`;
+        window.history.replaceState(null, "", nextUrl);
+        lastWrittenSnapshot = snapshot;
+      }
+    } catch (error) {
+      console.warn("Unable to compress tile state URL.", error);
+    } finally {
+      isWritingUrl = false;
+      if (pendingSnapshot !== lastWrittenSnapshot) {
+        void processUrlWriteQueue();
+      }
+    }
+  }
+  async function encodeStateParam(snapshot) {
+    const input = new TextEncoder().encode(snapshot);
+    if ("CompressionStream" in window) {
+      const stream = new Blob([bytesToArrayBuffer(input)]).stream().pipeThrough(new CompressionStream("gzip"));
+      const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+      return `z${bytesToBase64Url(compressed)}`;
+    }
+    return `j${bytesToBase64Url(input)}`;
+  }
+  async function decodeStateParam(encoded) {
+    const prefix = encoded[0];
+    if (prefix === "z") {
+      if (!("DecompressionStream" in window)) {
+        throw new Error("This browser does not support compressed URLs.");
+      }
+      const bytes = base64UrlToBytes(encoded.slice(1));
+      const stream = new Blob([bytesToArrayBuffer(bytes)]).stream().pipeThrough(new DecompressionStream("gzip"));
+      return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+    }
+    if (prefix === "j") {
+      const bytes = base64UrlToBytes(encoded.slice(1));
+      return new TextDecoder().decode(bytes);
+    }
+    return new TextDecoder().decode(base64UrlToBytes(encoded));
+  }
+  function bytesToArrayBuffer(bytes) {
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    return copy.buffer;
+  }
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 32768) {
+      binary += String.fromCharCode(...bytes.slice(index, index + 32768));
+    }
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  }
+  function base64UrlToBytes(value) {
+    const base64 = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+  function toolCode(tool) {
+    if (tool === "grab") return "g";
+    if (tool === "erase") return "e";
+    if (tool === "colorPicker") return "c";
+    return "p";
+  }
+  function toolFromCode(code) {
+    if (code === "g") return "grab";
+    if (code === "e") return "erase";
+    if (code === "c") return "colorPicker";
+    if (code === "p") return "paint";
+    return void 0;
+  }
+  function paintShapeCode(shape) {
+    if (shape === "orthogonalCross") return "o";
+    if (shape === "diagonalCross") return "d";
+    if (shape === "star") return "s";
+    return "i";
+  }
+  function paintShapeFromCode(code) {
+    if (code === "o") return "orthogonalCross";
+    if (code === "d") return "diagonalCross";
+    if (code === "s") return "star";
+    if (code === "i") return "inset";
+    return void 0;
+  }
+  function tileKindCode(kind) {
+    if (kind === "orthogonalCross") return "o";
+    if (kind === "diagonalCross") return "d";
+    return "s";
+  }
+  function tileKindFromCode(code) {
+    if (code === "o") return "orthogonalCross";
+    if (code === "d") return "diagonalCross";
+    if (code === "s") return "star";
+    return void 0;
   }
   function validManufacturer(id) {
     return MANUFACTURERS.some((manufacturer) => manufacturer.id === id) ? id ?? void 0 : void 0;
@@ -1635,21 +1768,6 @@
     }
     const next = Number(value);
     return Number.isInteger(next) && GROUT_JOINT_OPTIONS.includes(next) ? next : void 0;
-  }
-  function validMode(value) {
-    return value === "straight" || value === "diagonal" ? value : void 0;
-  }
-  function validTool(value) {
-    return value === "paint" || value === "grab" || value === "erase" || value === "colorPicker" ? value : void 0;
-  }
-  function validPaintShape(value) {
-    return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" ? value : void 0;
-  }
-  function parseTileKind(value) {
-    if (value === "orthogonalCross" || value === "diagonalCross" || value === "star") {
-      return value;
-    }
-    return void 0;
   }
   function validTileInches(value) {
     const next = Number(value);
@@ -1701,22 +1819,25 @@
   var palette = requiredElement(document.querySelector("#palette"), "palette");
   var groutPalette = requiredElement(document.querySelector("#grout-palette"), "grout palette");
   var groutJointInputs = Array.from(document.querySelectorAll("input[name='grout-joint']"));
-  var clearButton = requiredElement(document.querySelector("#clear"), "clear button");
   var layoutErrors = requiredElement(document.querySelector("#layout-errors"), "layout error panel");
   var ctx = requiredElement(canvas.getContext("2d"), "canvas 2D context");
   var swatchTooltip = document.createElement("div");
   swatchTooltip.className = "swatch-tooltip";
   document.body.append(swatchTooltip);
-  var state = loadState(workspace);
+  var state;
   var dragInteraction;
   var lastPaintKey = "";
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
   var materialSwatchCache = /* @__PURE__ */ new Map();
-  setupCanvas();
-  setupControls();
-  syncControls();
-  render();
+  void start();
+  async function start() {
+    state = await loadState(workspace);
+    setupCanvas();
+    setupControls();
+    syncControls();
+    render();
+  }
   function setupCanvas() {
     const deviceRatio = window.devicePixelRatio || 1;
     const room = roomPx(state);
@@ -1805,13 +1926,6 @@
         }
       });
     });
-    clearButton.addEventListener("click", () => {
-      state.cells.clear();
-      state.edgeInsets.clear();
-      state.cornerInsets.clear();
-      updateUrl(state);
-      render();
-    });
     canvas.addEventListener("pointerdown", handlePointerDown);
     canvas.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("pointerup", handlePointerUp);
@@ -1897,8 +2011,9 @@
         swatch.dataset.tooltip = label;
         swatch.setAttribute("aria-label", label);
         swatch.addEventListener("click", () => {
+          const clickedCurrentPaintColor = state.tool === "paint" && state.paintShape !== void 0 && state.colorId === color.id;
           selectColor(manufacturer.id, color.id);
-          if (state.tool !== "paint" || !state.paintShape) {
+          if (clickedCurrentPaintColor || state.tool !== "paint" || !state.paintShape) {
             switchToPaintColorOnly();
           }
           syncInteractionControls();

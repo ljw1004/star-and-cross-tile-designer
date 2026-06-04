@@ -8,43 +8,53 @@ import {
   MIN_ROOM_HEIGHT_INCHES,
   MIN_ROOM_WIDTH_INCHES,
   TILE_SIZE_OPTIONS,
-  URL_VERSION,
 } from "./constants";
 import { clamp, initialZoomForRoom, normalizeZoom, roundToHalfInch } from "./geometry";
 import { canonicalEdgeKey, cellKey, cornerKey, parseCellKey, parseCornerKey, parseEdgeKey } from "./keys";
-import type { AppState, Corner, Mode, PaintShape, Side, TileKind, Tool } from "./types";
+import type { AppState, Corner, PaintShape, Side, TileKind, Tool } from "./types";
 
-export function loadState(workspace: HTMLElement): AppState {
+type CompactState = {
+  v: 2;
+  m: "s" | "d";
+  q?: 1;
+  rw: number;
+  rh: number;
+  ts: number;
+  ox: number;
+  oy: number;
+  gc: string;
+  gj: number;
+  tl: "p" | "g" | "e" | "c";
+  ps?: "o" | "d" | "s" | "i";
+  mf: string;
+  c: string;
+  cs?: string[];
+  a?: Array<[number, number, "o" | "d" | "s", number]>;
+  e?: Array<[number, number, Side, number]>;
+  k?: Array<[number, number, Corner, number]>;
+};
+
+let pendingSnapshot = "";
+let lastWrittenSnapshot = "";
+let isWritingUrl = false;
+let debounceTimer: number | undefined;
+
+export async function loadState(workspace: HTMLElement): Promise<AppState> {
   const params = new URLSearchParams(window.location.search);
   const next = cloneDefaultState();
-
-  next.mode = validMode(params.get("m")) ?? next.mode;
-  next.showGrid = params.get("g") === "1";
-  next.roomWidthInches = validRoomWidth(params.get("rw")) ?? next.roomWidthInches;
-  next.roomHeightInches = validRoomHeight(params.get("rh")) ?? next.roomHeightInches;
-  next.tileInches = validTileInches(params.get("ts")) ?? next.tileInches;
-  next.offsetXInches = validHalfInch(params.get("ox")) ?? next.offsetXInches;
-  next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
-  next.groutColorId = validGroutColor(params.get("gc")) ?? next.groutColorId;
-  next.groutJointSixteenths = validGroutJoint(params.get("gj")) ?? next.groutJointSixteenths;
-  const parsedTool = validTool(params.get("tl"));
-  if (parsedTool) {
-    next.tool = parsedTool;
-    next.paintShape = parsedTool === "paint" && !params.has("ps") ? undefined : next.paintShape;
-  }
-  next.paintShape = validPaintShape(params.get("ps")) ?? next.paintShape;
-  if (next.tool !== "paint") {
-    next.paintShape = undefined;
-  }
-  next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
-  next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
-
-  const layout = params.get("l");
-  if (layout) {
-    parseLayout(layout, next);
+  const encoded = params.get("s");
+  if (encoded) {
+    try {
+      const compact = JSON.parse(await decodeStateParam(encoded)) as CompactState;
+      console.log("Expanded URL tile state", compact);
+      applyCompactState(compact, next);
+    } catch (error) {
+      console.warn("Unable to decode tile state URL; using defaults.", error);
+    }
   }
 
   next.zoom = initialZoomForRoom(workspace, next.roomWidthInches, next.roomHeightInches);
+  lastWrittenSnapshot = JSON.stringify(compactState(next));
 
   return next;
 }
@@ -71,92 +81,254 @@ export function cloneDefaultState(): AppState {
   };
 }
 
-export function parseLayout(layout: string, next: AppState): void {
-  const decoded = decodeURIComponent(layout);
-  if (!decoded) {
-    return;
+export function updateUrl(state: AppState): void {
+  pendingSnapshot = JSON.stringify(compactState(state));
+  if (debounceTimer !== undefined) {
+    window.clearTimeout(debounceTimer);
+  }
+  debounceTimer = window.setTimeout(() => {
+    debounceTimer = undefined;
+    void processUrlWriteQueue();
+  }, 10);
+}
+
+function applyCompactState(compact: CompactState, next: AppState): void {
+  if (compact.v !== 2) {
+    throw new Error(`Unsupported compressed state version ${String(compact.v)}.`);
   }
 
-  for (const item of decoded.split(";")) {
-    const parts = item.split(",");
-    if (parts[0] === "t" && parts.length === 5) {
-      const col = Number(parts[1]);
-      const row = Number(parts[2]);
-      const kind = parseTileKind(parts[3]);
-      const colorId = parts[4];
-      if (Number.isInteger(col) && Number.isInteger(row) && kind) {
-        next.cells.set(cellKey(col, row), { kind, colorId });
-      }
-    } else if (parts[0] === "e" && parts.length === 5) {
-      const col = Number(parts[1]);
-      const row = Number(parts[2]);
-      const side = parts[3] as Side;
-      const colorId = parts[4];
-      if (Number.isInteger(col) && Number.isInteger(row) && validSide(side)) {
-        next.edgeInsets.set(canonicalEdgeKey(col, row, side), { colorId });
-      }
-    } else if (parts[0] === "k" && parts.length === 5) {
-      const col = Number(parts[1]);
-      const row = Number(parts[2]);
-      const corner = parts[3] as Corner;
-      const colorId = parts[4];
-      if (Number.isInteger(col) && Number.isInteger(row) && validCorner(corner)) {
-        next.cornerInsets.set(cornerKey(col, row, corner), { colorId });
-      }
+  next.mode = compact.m === "d" ? "diagonal" : "straight";
+  next.showGrid = compact.q === 1;
+  next.roomWidthInches = validRoomWidth(String(compact.rw)) ?? next.roomWidthInches;
+  next.roomHeightInches = validRoomHeight(String(compact.rh)) ?? next.roomHeightInches;
+  next.tileInches = validTileInches(String(compact.ts)) ?? next.tileInches;
+  next.offsetXInches = validHalfInch(String(compact.ox)) ?? next.offsetXInches;
+  next.offsetYInches = validHalfInch(String(compact.oy)) ?? next.offsetYInches;
+  next.groutColorId = validGroutColor(compact.gc) ?? next.groutColorId;
+  next.groutJointSixteenths = validGroutJoint(String(compact.gj)) ?? next.groutJointSixteenths;
+  next.tool = toolFromCode(compact.tl) ?? next.tool;
+  next.paintShape = next.tool === "paint" ? paintShapeFromCode(compact.ps) : undefined;
+  next.manufacturerId = validManufacturer(compact.mf) ?? next.manufacturerId;
+  next.colorId = validColor(next.manufacturerId, compact.c) ?? next.colorId;
+
+  const colors = compact.cs ?? [];
+  next.cells.clear();
+  next.edgeInsets.clear();
+  next.cornerInsets.clear();
+
+  for (const record of compact.a ?? []) {
+    const [col, row, kindCode, colorIndex] = record;
+    const kind = tileKindFromCode(kindCode);
+    const colorId = colors[colorIndex];
+    if (Number.isInteger(col) && Number.isInteger(row) && kind && colorId) {
+      next.cells.set(cellKey(col, row), { kind, colorId });
+    }
+  }
+
+  for (const record of compact.e ?? []) {
+    const [col, row, side, colorIndex] = record;
+    const colorId = colors[colorIndex];
+    if (Number.isInteger(col) && Number.isInteger(row) && validSide(side) && colorId) {
+      next.edgeInsets.set(canonicalEdgeKey(col, row, side), { colorId });
+    }
+  }
+
+  for (const record of compact.k ?? []) {
+    const [col, row, corner, colorIndex] = record;
+    const colorId = colors[colorIndex];
+    if (Number.isInteger(col) && Number.isInteger(row) && validCorner(corner) && colorId) {
+      next.cornerInsets.set(cornerKey(col, row, corner), { colorId });
     }
   }
 }
 
-export function updateUrl(state: AppState): void {
-  const params = new URLSearchParams();
-  params.set("v", URL_VERSION);
-  params.set("m", state.mode);
+function compactState(state: AppState): CompactState {
+  const colorIndexes = new Map<string, number>();
+  const colors: string[] = [];
+  const colorIndex = (colorId: string): number => {
+    const existing = colorIndexes.get(colorId);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const next = colors.length;
+    colors.push(colorId);
+    colorIndexes.set(colorId, next);
+    return next;
+  };
+
+  const compact: CompactState = {
+    v: 2,
+    m: state.mode === "diagonal" ? "d" : "s",
+    rw: state.roomWidthInches,
+    rh: state.roomHeightInches,
+    ts: state.tileInches,
+    ox: state.offsetXInches,
+    oy: state.offsetYInches,
+    gc: state.groutColorId,
+    gj: state.groutJointSixteenths,
+    tl: toolCode(state.tool),
+    mf: state.manufacturerId,
+    c: state.colorId,
+  };
+
   if (state.showGrid) {
-    params.set("g", "1");
+    compact.q = 1;
   }
-  params.set("rw", String(state.roomWidthInches));
-  params.set("rh", String(state.roomHeightInches));
-  params.set("ts", String(state.tileInches));
-  params.set("ox", String(state.offsetXInches));
-  params.set("oy", String(state.offsetYInches));
-  params.set("gc", state.groutColorId);
-  params.set("gj", String(state.groutJointSixteenths));
-  params.set("tl", state.tool);
   if (state.tool === "paint" && state.paintShape) {
-    params.set("ps", state.paintShape);
-  }
-  params.set("mf", state.manufacturerId);
-  params.set("c", state.colorId);
-
-  const layout = serializeLayout(state);
-  if (layout) {
-    params.set("l", layout);
+    compact.ps = paintShapeCode(state.paintShape);
   }
 
-  const query = params.toString();
-  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
-  window.history.replaceState(null, "", nextUrl);
-}
-
-export function serializeLayout(state: AppState): string {
-  const items: string[] = [];
-
+  const cells: CompactState["a"] = [];
   for (const [key, tile] of state.cells) {
     const { col, row } = parseCellKey(key);
-    items.push(["t", col, row, tile.kind, tile.colorId].join(","));
+    cells.push([col, row, tileKindCode(tile.kind), colorIndex(tile.colorId)]);
+  }
+  if (cells.length > 0) {
+    compact.a = cells;
   }
 
+  const edgeInsets: CompactState["e"] = [];
   for (const [key, inset] of state.edgeInsets) {
     const edge = parseEdgeKey(key);
-    items.push(["e", edge.col, edge.row, edge.side, inset.colorId].join(","));
+    edgeInsets.push([edge.col, edge.row, edge.side, colorIndex(inset.colorId)]);
+  }
+  if (edgeInsets.length > 0) {
+    compact.e = edgeInsets;
   }
 
+  const cornerInsets: CompactState["k"] = [];
   for (const [key, inset] of state.cornerInsets) {
     const corner = parseCornerKey(key);
-    items.push(["k", corner.col, corner.row, corner.corner, inset.colorId].join(","));
+    cornerInsets.push([corner.col, corner.row, corner.corner, colorIndex(inset.colorId)]);
+  }
+  if (cornerInsets.length > 0) {
+    compact.k = cornerInsets;
   }
 
-  return items.join(";");
+  if (colors.length > 0) {
+    compact.cs = colors;
+  }
+
+  return compact;
+}
+
+async function processUrlWriteQueue(): Promise<void> {
+  if (isWritingUrl || pendingSnapshot === "" || pendingSnapshot === lastWrittenSnapshot) {
+    return;
+  }
+
+  isWritingUrl = true;
+  const snapshot = pendingSnapshot;
+  try {
+    const encoded = await encodeStateParam(snapshot);
+    if (pendingSnapshot === snapshot) {
+      const nextUrl = `${window.location.pathname}?s=${encoded}`;
+      window.history.replaceState(null, "", nextUrl);
+      lastWrittenSnapshot = snapshot;
+    }
+  } catch (error) {
+    console.warn("Unable to compress tile state URL.", error);
+  } finally {
+    isWritingUrl = false;
+    if (pendingSnapshot !== lastWrittenSnapshot) {
+      void processUrlWriteQueue();
+    }
+  }
+}
+
+async function encodeStateParam(snapshot: string): Promise<string> {
+  const input = new TextEncoder().encode(snapshot);
+  if ("CompressionStream" in window) {
+    const stream = new Blob([bytesToArrayBuffer(input)]).stream().pipeThrough(new CompressionStream("gzip"));
+    const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+    return `z${bytesToBase64Url(compressed)}`;
+  }
+  return `j${bytesToBase64Url(input)}`;
+}
+
+async function decodeStateParam(encoded: string): Promise<string> {
+  const prefix = encoded[0];
+  if (prefix === "z") {
+    if (!("DecompressionStream" in window)) {
+      throw new Error("This browser does not support compressed URLs.");
+    }
+    const bytes = base64UrlToBytes(encoded.slice(1));
+    const stream = new Blob([bytesToArrayBuffer(bytes)]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+  }
+  if (prefix === "j") {
+    const bytes = base64UrlToBytes(encoded.slice(1));
+    return new TextDecoder().decode(bytes);
+  }
+
+  return new TextDecoder().decode(base64UrlToBytes(encoded));
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.slice(index, index + 0x8000));
+  }
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function base64UrlToBytes(value: string): Uint8Array {
+  const base64 = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function toolCode(tool: Tool): CompactState["tl"] {
+  if (tool === "grab") return "g";
+  if (tool === "erase") return "e";
+  if (tool === "colorPicker") return "c";
+  return "p";
+}
+
+function toolFromCode(code: CompactState["tl"]): Tool | undefined {
+  if (code === "g") return "grab";
+  if (code === "e") return "erase";
+  if (code === "c") return "colorPicker";
+  if (code === "p") return "paint";
+  return undefined;
+}
+
+function paintShapeCode(shape: PaintShape): NonNullable<CompactState["ps"]> {
+  if (shape === "orthogonalCross") return "o";
+  if (shape === "diagonalCross") return "d";
+  if (shape === "star") return "s";
+  return "i";
+}
+
+function paintShapeFromCode(code: CompactState["ps"]): PaintShape | undefined {
+  if (code === "o") return "orthogonalCross";
+  if (code === "d") return "diagonalCross";
+  if (code === "s") return "star";
+  if (code === "i") return "inset";
+  return undefined;
+}
+
+function tileKindCode(kind: TileKind): "o" | "d" | "s" {
+  if (kind === "orthogonalCross") return "o";
+  if (kind === "diagonalCross") return "d";
+  return "s";
+}
+
+function tileKindFromCode(code: "o" | "d" | "s"): TileKind | undefined {
+  if (code === "o") return "orthogonalCross";
+  if (code === "d") return "diagonalCross";
+  if (code === "s") return "star";
+  return undefined;
 }
 
 export function validManufacturer(id: string | null): string | undefined {
@@ -178,25 +350,6 @@ export function validGroutJoint(value: string | null): number | undefined {
   }
   const next = Number(value);
   return Number.isInteger(next) && GROUT_JOINT_OPTIONS.includes(next) ? next : undefined;
-}
-
-export function validMode(value: string | null): Mode | undefined {
-  return value === "straight" || value === "diagonal" ? value : undefined;
-}
-
-export function validTool(value: string | null): Tool | undefined {
-  return value === "paint" || value === "grab" || value === "erase" || value === "colorPicker" ? value : undefined;
-}
-
-export function validPaintShape(value: string | null): PaintShape | undefined {
-  return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" ? value : undefined;
-}
-
-export function parseTileKind(value: string): TileKind | undefined {
-  if (value === "orthogonalCross" || value === "diagonalCross" || value === "star") {
-    return value;
-  }
-  return undefined;
 }
 
 export function validTileInches(value: string | null): number | undefined {

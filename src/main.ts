@@ -33,24 +33,28 @@ const materialToolIcons = Array.from(document.querySelectorAll<HTMLCanvasElement
 const palette = requiredElement(document.querySelector<HTMLDivElement>("#palette"), "palette");
 const groutPalette = requiredElement(document.querySelector<HTMLDivElement>("#grout-palette"), "grout palette");
 const groutJointInputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[name='grout-joint']"));
-const clearButton = requiredElement(document.querySelector<HTMLButtonElement>("#clear"), "clear button");
 const layoutErrors = requiredElement(document.querySelector<HTMLDivElement>("#layout-errors"), "layout error panel");
 const ctx = requiredElement(canvas.getContext("2d"), "canvas 2D context");
 const swatchTooltip = document.createElement("div");
 swatchTooltip.className = "swatch-tooltip";
 document.body.append(swatchTooltip);
 
-let state: AppState = loadState(workspace);
+let state!: AppState;
 let dragInteraction: DragInteraction | undefined;
 let lastPaintKey = "";
 let lastConflictSignature = "";
 let renderReadyFrame = 0;
 const materialSwatchCache = new Map<string, string>();
 
-setupCanvas();
-setupControls();
-syncControls();
-render();
+void start();
+
+async function start(): Promise<void> {
+  state = await loadState(workspace);
+  setupCanvas();
+  setupControls();
+  syncControls();
+  render();
+}
 
 function setupCanvas(): void {
   const deviceRatio = window.devicePixelRatio || 1;
@@ -150,14 +154,6 @@ function setupControls(): void {
     });
   });
 
-  clearButton.addEventListener("click", () => {
-    state.cells.clear();
-    state.edgeInsets.clear();
-    state.cornerInsets.clear();
-    updateUrl(state);
-    render();
-  });
-
   canvas.addEventListener("pointerdown", handlePointerDown);
   canvas.addEventListener("pointermove", handlePointerMove);
   canvas.addEventListener("pointerup", handlePointerUp);
@@ -252,8 +248,9 @@ function renderPalette(): void {
       swatch.dataset.tooltip = label;
       swatch.setAttribute("aria-label", label);
       swatch.addEventListener("click", () => {
+        const clickedCurrentPaintColor = state.tool === "paint" && state.paintShape !== undefined && state.colorId === color.id;
         selectColor(manufacturer.id, color.id);
-        if (state.tool !== "paint" || !state.paintShape) {
+        if (clickedCurrentPaintColor || state.tool !== "paint" || !state.paintShape) {
           switchToPaintColorOnly();
         }
         syncInteractionControls();

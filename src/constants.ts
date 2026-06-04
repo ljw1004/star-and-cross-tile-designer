@@ -12,7 +12,6 @@ export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 8;
 export const ZOOM_FACTOR = 1.12;
 export const SCALE = 8;
-export const URL_VERSION = "1";
 export const SIDES: Side[] = ["n", "e", "s", "w"];
 export const CORNERS: Corner[] = ["nw", "ne", "se", "sw"];
 export const DEFAULT_GROUT_COLOR_ID = "warm-white";
