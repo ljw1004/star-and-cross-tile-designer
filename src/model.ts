@@ -1,6 +1,6 @@
 import { CORNERS, SIDES } from "./constants";
 import { analyzeLayoutConflicts } from "./conflicts";
-import { cornerInsetCenter, distance, edgeMidpoint, nearestTacoTarget, tacoHalfDiagonalPx, tacoSidePx } from "./geometry";
+import { cornerInsetCenter, cornerTacoSidePx, distance, edgeMidpoint, nearestTacoTarget, tacoHalfDiagonalPx } from "./geometry";
 import { canonicalEdgeKey, cellKey, cellsForEdge, cornerKey, neighborForSide, neighbors, oppositeSide, parseEdgeKey } from "./keys";
 import type { AppState, Corner, CrossKind, Point, Side, TacoEraseCandidate } from "./types";
 
@@ -64,23 +64,29 @@ function placeCompatibleTacosForCross(state: AppState, col: number, row: number,
 
 function setEdgeInsetIfNoNewConflict(state: AppState, col: number, row: number, side: Side, colorId: string): void {
   const key = canonicalEdgeKey(col, row, side);
-  const previous = state.edgeInsets.get(key);
+  if (state.edgeInsets.has(key)) {
+    return;
+  }
+
   const before = conflictSignatureSet(state);
 
   state.edgeInsets.set(key, { colorId });
   if (hasNewConflicts(state, before)) {
-    restoreMapEntry(state.edgeInsets, key, previous);
+    state.edgeInsets.delete(key);
   }
 }
 
 function setCornerInsetIfNoNewConflict(state: AppState, col: number, row: number, corner: Corner, colorId: string): void {
   const key = cornerKey(col, row, corner);
-  const previous = state.cornerInsets.get(key);
+  if (state.cornerInsets.has(key)) {
+    return;
+  }
+
   const before = conflictSignatureSet(state);
 
   state.cornerInsets.set(key, { colorId });
   if (hasNewConflicts(state, before)) {
-    restoreMapEntry(state.cornerInsets, key, previous);
+    state.cornerInsets.delete(key);
   }
 }
 
@@ -90,14 +96,6 @@ function conflictSignatureSet(state: AppState): Set<string> {
 
 function hasNewConflicts(state: AppState, before: Set<string>): boolean {
   return analyzeLayoutConflicts(state).some((conflict) => !before.has(`${conflict.code}:${conflict.message}`));
-}
-
-function restoreMapEntry<K, V>(map: Map<K, V>, key: K, value: V | undefined): void {
-  if (value) {
-    map.set(key, value);
-  } else {
-    map.delete(key);
-  }
 }
 
 function replaceWithDiagonalCross(state: AppState, col: number, row: number): void {
@@ -235,7 +233,7 @@ function cornerEraseCandidate(state: AppState, point: Point, key: string, col: n
   const center = cornerInsetCenter(state, col, row, corner);
   const dx = Math.abs(point.x - center.x);
   const dy = Math.abs(point.y - center.y);
-  const halfSize = tacoSidePx(state) / 2;
+  const halfSize = cornerTacoSidePx(state) / 2;
   const margin = 3;
   return {
     key,

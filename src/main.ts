@@ -3,17 +3,21 @@ import {
   canvasPoint,
   cellFromPoint,
   clamp,
+  layoutRotation,
   normalizeZoom,
   pointInRoom,
   resizeHandleAtPoint,
+  roomCenter,
   roomPx,
   roundToHalfInch,
+  screenToGridLocal,
 } from "./geometry";
+import { DROPPER_CURSOR, ERASER_CURSOR, PAINT_ROLLER_CURSOR, traceToolIconPath } from "./icons";
 import { colorIdAt, colorOnlyAt, eraseAt, paintKey, placeCross, placeInset, placeStar } from "./model";
 import { fillMaterialPath } from "./material";
 import { draw, markRenderReady, renderConflictReport } from "./render";
 import { loadState, updateUrl, validGroutJoint, validTileInches } from "./state";
-import type { AppState, DragInteraction, PaintShape, Point, ResizeHandle, Tool } from "./types";
+import type { AppState, CrossKind, DragInteraction, Mode, PaintShape, Point, ResizeHandle, Tool } from "./types";
 
 const canvas = requiredElement(document.querySelector<HTMLCanvasElement>("#room"), "room canvas");
 const workspace = requiredElement(document.querySelector<HTMLElement>(".workspace"), "workspace");
@@ -42,24 +46,6 @@ let lastPaintKey = "";
 let lastConflictSignature = "";
 let renderReadyFrame = 0;
 const materialSwatchCache = new Map<string, string>();
-const ERASER_CURSOR = svgCursor(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 19 8l8 8-10 10H11z"/><path fill="black" d="M11 26h17v3H11z"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 11 26h6l4-4-8-8z"/></svg>`,
-  6,
-  21,
-  "crosshair",
-);
-const PAINT_ROLLER_CURSOR = svgCursor(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="black" d="M16 1 19 5h-6z"/><rect x="4" y="5" width="20" height="7" rx="2" fill="white" stroke="black" stroke-width="2"/><path fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M24 8.5h4v7.5H17v4"/><path fill="white" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 20h6v9h-6z"/></svg>`,
-  16,
-  1,
-  "crosshair",
-);
-const DROPPER_CURSOR = svgCursor(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(45 16 16)"><path fill="black" d="M11 7c0-4 5-7 5-7s5 3 5 7c0 3-2 6-5 6s-5-3-5-6z"/><rect x="14" y="12" width="4" height="16" rx="1" fill="white" stroke="black" stroke-width="2"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M14 28h4l-2 3z"/></g></svg>`,
-  24,
-  28,
-  "copy",
-);
 
 setupCanvas();
 setupControls();
@@ -85,17 +71,13 @@ function requiredElement<T>(element: T | null, label: string): T {
   return element;
 }
 
-function svgCursor(svg: string, hotspotX: number, hotspotY: number, fallback: string): string {
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hotspotX} ${hotspotY}, ${fallback}`;
-}
-
 function setupControls(): void {
   tooltipControls.forEach(attachSwatchTooltip);
 
   modeInputs.forEach((input) => {
-    input.addEventListener("change", () => {
+    input.addEventListener("click", () => {
       if (input.checked) {
-        state.mode = input.value as AppState["mode"];
+        switchLayoutMode(input.value as Mode);
         updateUrl(state);
         render();
       }
@@ -184,7 +166,33 @@ function setupControls(): void {
   window.addEventListener("wheel", handleWheel, { passive: false });
 }
 
+function switchLayoutMode(nextMode: Mode): void {
+  if (state.mode !== nextMode) {
+    const center = roomCenter(state);
+    const localCenterBefore = screenToGridLocal(state, center);
+    state.mode = nextMode;
+    const angle = layoutRotation(state);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const rotatedCenter = {
+      x: localCenterBefore.x * cos - localCenterBefore.y * sin,
+      y: localCenterBefore.x * sin + localCenterBefore.y * cos,
+    };
+    state.offsetXInches = roundToHalfInch(-rotatedCenter.x / SCALE);
+    state.offsetYInches = roundToHalfInch(-rotatedCenter.y / SCALE);
+  }
+
+  state.tool = "grab";
+  state.paintShape = undefined;
+  syncModeClass();
+  syncInteractionControls();
+  renderToolIcons();
+  syncPaletteState();
+  updateCanvasCursor();
+}
+
 function syncControls(): void {
+  syncModeClass();
   modeInputs.forEach((input) => {
     input.checked = input.value === state.mode;
   });
@@ -214,6 +222,10 @@ function syncInteractionControls(): void {
 
 function syncSpecs(): void {
   roomSpec.textContent = `${state.roomWidthInches}" x ${state.roomHeightInches}"`;
+}
+
+function syncModeClass(): void {
+  document.body.classList.toggle("mode-diagonal", state.mode === "diagonal");
 }
 
 function renderPalette(): void {
@@ -281,91 +293,13 @@ function renderToolIcons(): void {
 
     const iconCtx = requiredElement(icon.getContext("2d"), "tool icon canvas context");
     iconCtx.clearRect(0, 0, icon.width, icon.height);
-    traceToolIconPath(iconCtx, shape);
+    traceToolIconPath(iconCtx, shape, state.mode);
     fillMaterialPath(iconCtx, state.colorId, `tool-icon:${shape}:${state.colorId}`, { x: 0, y: 0, width: icon.width, height: icon.height });
-    traceToolIconPath(iconCtx, shape);
+    traceToolIconPath(iconCtx, shape, state.mode);
     iconCtx.lineWidth = 2;
     iconCtx.strokeStyle = "#050505";
     iconCtx.stroke();
   }
-}
-
-function traceToolIconPath(ctx: CanvasRenderingContext2D, shape: PaintShape): void {
-  ctx.beginPath();
-  if (shape === "orthogonalCross") {
-    tracePolygon(ctx, [
-      [50, 0],
-      [66.3, 16.3],
-      [66.3, 33.8],
-      [83.8, 33.8],
-      [100, 50],
-      [83.8, 66.3],
-      [66.3, 66.3],
-      [66.3, 83.8],
-      [50, 100],
-      [33.8, 83.8],
-      [33.8, 66.3],
-      [16.3, 66.3],
-      [0, 50],
-      [16.3, 33.8],
-      [33.8, 33.8],
-      [33.8, 16.3],
-    ]);
-  } else if (shape === "diagonalCross") {
-    tracePolygon(ctx, [
-      [10, 10],
-      [36, 10],
-      [50, 24],
-      [64, 10],
-      [90, 10],
-      [90, 36],
-      [76, 50],
-      [90, 64],
-      [90, 90],
-      [64, 90],
-      [50, 76],
-      [36, 90],
-      [10, 90],
-      [10, 64],
-      [24, 50],
-      [10, 36],
-    ]);
-  } else if (shape === "star") {
-    tracePolygon(ctx, [
-      [16, 16],
-      [36, 16],
-      [50, 0],
-      [64, 16],
-      [84, 16],
-      [84, 36],
-      [100, 50],
-      [84, 64],
-      [84, 84],
-      [64, 84],
-      [50, 100],
-      [36, 84],
-      [16, 84],
-      [16, 64],
-      [0, 50],
-      [16, 36],
-    ]);
-  } else {
-    tracePolygon(ctx, [
-      [50, 14],
-      [86, 50],
-      [50, 86],
-      [14, 50],
-    ]);
-  }
-}
-
-function tracePolygon(ctx: CanvasRenderingContext2D, points: Array<[number, number]>): void {
-  const [first, ...rest] = points;
-  ctx.moveTo(first[0], first[1]);
-  for (const point of rest) {
-    ctx.lineTo(point[0], point[1]);
-  }
-  ctx.closePath();
 }
 
 function materialTooltipText(manufacturerId: string, colorId: string): string | undefined {
@@ -619,7 +553,7 @@ function paintFromPointer(event: PointerEvent): void {
   } else if (state.tool !== "paint" || !state.paintShape) {
     return;
   } else if (state.paintShape === "orthogonalCross" || state.paintShape === "diagonalCross") {
-    placeCross(state, cell.col, cell.row, state.paintShape, state.colorId);
+    placeCross(state, cell.col, cell.row, crossKindForPaintShape(state.paintShape), state.colorId);
   } else if (state.paintShape === "star") {
     placeStar(state, cell.col, cell.row, state.colorId);
   } else {
@@ -628,6 +562,13 @@ function paintFromPointer(event: PointerEvent): void {
 
   updateUrl(state);
   render();
+}
+
+function crossKindForPaintShape(shape: Extract<PaintShape, CrossKind>): CrossKind {
+  if (state.mode !== "diagonal") {
+    return shape;
+  }
+  return shape === "orthogonalCross" ? "diagonalCross" : "orthogonalCross";
 }
 
 function pickColorFromPointer(point: Point): void {

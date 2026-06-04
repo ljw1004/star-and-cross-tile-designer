@@ -13,6 +13,7 @@ export function fillMaterialPath(ctx: CanvasRenderingContext2D, colorId: string,
   const random = seededRandom(seed);
   const variation = color.shadeVariation * 5;
   const base = adjustLightness(color.value, (random() - 0.5) * variation);
+  const screenBounds = transformedBounds(ctx, bounds);
 
   ctx.fillStyle = base;
   ctx.fill();
@@ -23,7 +24,7 @@ export function fillMaterialPath(ctx: CanvasRenderingContext2D, colorId: string,
   drawGrain(ctx, color, random, bounds);
   drawStripes(ctx, color, random, bounds);
   drawChips(ctx, color, random, bounds);
-  drawSheen(ctx, color, bounds);
+  drawSheen(ctx, color, screenBounds);
   ctx.restore();
 }
 
@@ -125,6 +126,8 @@ function drawSheen(ctx: CanvasRenderingContext2D, color: PaletteColor, bounds: M
     return;
   }
 
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   const gradient = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height);
   gradient.addColorStop(0, "rgba(255,255,255,0)");
   gradient.addColorStop(0.34, `rgba(255,255,255,${0.04 + color.sheen * 0.12})`);
@@ -133,6 +136,31 @@ function drawSheen(ctx: CanvasRenderingContext2D, color: PaletteColor, bounds: M
   gradient.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function transformedBounds(ctx: CanvasRenderingContext2D, bounds: MaterialBounds): MaterialBounds {
+  const transform = ctx.getTransform();
+  const points = [
+    transformPoint(transform, bounds.x, bounds.y),
+    transformPoint(transform, bounds.x + bounds.width, bounds.y),
+    transformPoint(transform, bounds.x + bounds.width, bounds.y + bounds.height),
+    transformPoint(transform, bounds.x, bounds.y + bounds.height),
+  ];
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function transformPoint(transform: DOMMatrix, x: number, y: number): { x: number; y: number } {
+  return {
+    x: transform.a * x + transform.c * y + transform.e,
+    y: transform.b * x + transform.d * y + transform.f,
+  };
 }
 
 function seededRandom(seed: string): () => number {

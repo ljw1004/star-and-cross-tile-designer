@@ -253,6 +253,7 @@
   }
 
   // src/geometry.ts
+  var IDEAL_TACO_TO_HALF_BASE = 2 - Math.SQRT2;
   function initialZoomForRoom(workspace2, roomWidthInches, roomHeightInches) {
     const style = getComputedStyle(workspace2);
     const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
@@ -276,17 +277,17 @@
   function tilePx(state2) {
     return state2.tileInches * SCALE;
   }
-  function baseDrawPx(state2) {
-    return Math.max(1, tilePx(state2) - groutPx(state2));
-  }
   function groutPx(state2) {
     return Math.max(1, state2.groutJointSixteenths / 16 * SCALE);
   }
   function tacoSidePx(state2) {
     return Math.max(1, idealTacoSidePx(state2) - groutPx(state2));
   }
+  function cornerTacoSidePx(state2) {
+    return tacoSidePx(state2);
+  }
   function idealTacoSidePx(state2) {
-    return tilePx(state2) / 4;
+    return tilePx(state2) / 2 * IDEAL_TACO_TO_HALF_BASE;
   }
   function tacoHalfDiagonalPx(state2) {
     return tacoSidePx(state2) / Math.SQRT2;
@@ -446,7 +447,7 @@
   }
   function cornerInsetCenter(state2, col, row, corner) {
     const halfTile = tilePx(state2) / 2;
-    const centerOffset = groutPx(state2) / 2 + tacoSidePx(state2) / 2;
+    const centerOffset = groutPx(state2) / 2 + cornerTacoSidePx(state2) / 2;
     const x = corner === "nw" || corner === "sw" ? -halfTile + centerOffset : halfTile - centerOffset;
     const y = corner === "nw" || corner === "ne" ? -halfTile + centerOffset : halfTile - centerOffset;
     return cellLocalToScreen(state2, col, row, x, y);
@@ -477,6 +478,112 @@
   }
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  // src/icons.ts
+  var ERASER_CURSOR = svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 19 8l8 8-10 10H11z"/><path fill="black" d="M11 26h17v3H11z"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 11 26h6l4-4-8-8z"/></svg>`,
+    6,
+    21,
+    "crosshair"
+  );
+  var PAINT_ROLLER_CURSOR = svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="black" d="M16 1 19 5h-6z"/><rect x="4" y="5" width="20" height="7" rx="2" fill="white" stroke="black" stroke-width="2"/><path fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M24 8.5h4v7.5H17v4"/><path fill="white" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 20h6v9h-6z"/></svg>`,
+    16,
+    1,
+    "crosshair"
+  );
+  var DROPPER_CURSOR = svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(45 16 16)"><path fill="black" d="M11 7c0-4 5-7 5-7s5 3 5 7c0 3-2 6-5 6s-5-3-5-6z"/><rect x="14" y="12" width="4" height="16" rx="1" fill="white" stroke="black" stroke-width="2"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M14 28h4l-2 3z"/></g></svg>`,
+    24,
+    28,
+    "copy"
+  );
+  function traceToolIconPath(ctx2, shape, mode) {
+    ctx2.beginPath();
+    if (shape === "orthogonalCross") {
+      tracePolygon(ctx2, [
+        [50, 0],
+        [66.3, 16.3],
+        [66.3, 33.8],
+        [83.8, 33.8],
+        [100, 50],
+        [83.8, 66.3],
+        [66.3, 66.3],
+        [66.3, 83.8],
+        [50, 100],
+        [33.8, 83.8],
+        [33.8, 66.3],
+        [16.3, 66.3],
+        [0, 50],
+        [16.3, 33.8],
+        [33.8, 33.8],
+        [33.8, 16.3]
+      ]);
+    } else if (shape === "diagonalCross") {
+      tracePolygon(ctx2, [
+        [10, 10],
+        [36, 10],
+        [50, 24],
+        [64, 10],
+        [90, 10],
+        [90, 36],
+        [76, 50],
+        [90, 64],
+        [90, 90],
+        [64, 90],
+        [50, 76],
+        [36, 90],
+        [10, 90],
+        [10, 64],
+        [24, 50],
+        [10, 36]
+      ]);
+    } else if (shape === "star") {
+      tracePolygon(ctx2, [
+        [16, 16],
+        [36, 16],
+        [50, 0],
+        [64, 16],
+        [84, 16],
+        [84, 36],
+        [100, 50],
+        [84, 64],
+        [84, 84],
+        [64, 84],
+        [50, 100],
+        [36, 84],
+        [16, 84],
+        [16, 64],
+        [0, 50],
+        [16, 36]
+      ]);
+    } else if (mode === "diagonal") {
+      tracePolygon(ctx2, [
+        [28, 28],
+        [72, 28],
+        [72, 72],
+        [28, 72]
+      ]);
+    } else {
+      tracePolygon(ctx2, [
+        [50, 14],
+        [86, 50],
+        [50, 86],
+        [14, 50]
+      ]);
+    }
+  }
+  function svgCursor(svg, hotspotX, hotspotY, fallback) {
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hotspotX} ${hotspotY}, ${fallback}`;
+  }
+  function tracePolygon(ctx2, points) {
+    const [first, ...rest] = points;
+    ctx2.moveTo(first[0], first[1]);
+    for (const point of rest) {
+      ctx2.lineTo(point[0], point[1]);
+    }
+    ctx2.closePath();
   }
 
   // src/conflicts.ts
@@ -610,20 +717,24 @@
   }
   function setEdgeInsetIfNoNewConflict(state2, col, row, side, colorId) {
     const key = canonicalEdgeKey(col, row, side);
-    const previous = state2.edgeInsets.get(key);
+    if (state2.edgeInsets.has(key)) {
+      return;
+    }
     const before = conflictSignatureSet(state2);
     state2.edgeInsets.set(key, { colorId });
     if (hasNewConflicts(state2, before)) {
-      restoreMapEntry(state2.edgeInsets, key, previous);
+      state2.edgeInsets.delete(key);
     }
   }
   function setCornerInsetIfNoNewConflict(state2, col, row, corner, colorId) {
     const key = cornerKey(col, row, corner);
-    const previous = state2.cornerInsets.get(key);
+    if (state2.cornerInsets.has(key)) {
+      return;
+    }
     const before = conflictSignatureSet(state2);
     state2.cornerInsets.set(key, { colorId });
     if (hasNewConflicts(state2, before)) {
-      restoreMapEntry(state2.cornerInsets, key, previous);
+      state2.cornerInsets.delete(key);
     }
   }
   function conflictSignatureSet(state2) {
@@ -631,13 +742,6 @@
   }
   function hasNewConflicts(state2, before) {
     return analyzeLayoutConflicts(state2).some((conflict) => !before.has(`${conflict.code}:${conflict.message}`));
-  }
-  function restoreMapEntry(map, key, value) {
-    if (value) {
-      map.set(key, value);
-    } else {
-      map.delete(key);
-    }
   }
   function replaceWithDiagonalCross(state2, col, row) {
     const key = cellKey(col, row);
@@ -754,7 +858,7 @@
     const center = cornerInsetCenter(state2, col, row, corner);
     const dx = Math.abs(point.x - center.x);
     const dy = Math.abs(point.y - center.y);
-    const halfSize = tacoSidePx(state2) / 2;
+    const halfSize = cornerTacoSidePx(state2) / 2;
     const margin = 3;
     return {
       key,
@@ -838,6 +942,7 @@
     const random = seededRandom(seed);
     const variation = color.shadeVariation * 5;
     const base = adjustLightness(color.value, (random() - 0.5) * variation);
+    const screenBounds = transformedBounds(ctx2, bounds);
     ctx2.fillStyle = base;
     ctx2.fill();
     ctx2.save();
@@ -846,7 +951,7 @@
     drawGrain(ctx2, color, random, bounds);
     drawStripes(ctx2, color, random, bounds);
     drawChips(ctx2, color, random, bounds);
-    drawSheen(ctx2, color, bounds);
+    drawSheen(ctx2, color, screenBounds);
     ctx2.restore();
   }
   function drawClouding(ctx2, color, random, bounds) {
@@ -918,6 +1023,8 @@
     if (color.sheen <= 0.01) {
       return;
     }
+    ctx2.save();
+    ctx2.setTransform(1, 0, 0, 1, 0, 0);
     const gradient = ctx2.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height);
     gradient.addColorStop(0, "rgba(255,255,255,0)");
     gradient.addColorStop(0.34, `rgba(255,255,255,${0.04 + color.sheen * 0.12})`);
@@ -926,6 +1033,29 @@
     gradient.addColorStop(1, "rgba(255,255,255,0)");
     ctx2.fillStyle = gradient;
     ctx2.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    ctx2.restore();
+  }
+  function transformedBounds(ctx2, bounds) {
+    const transform = ctx2.getTransform();
+    const points = [
+      transformPoint(transform, bounds.x, bounds.y),
+      transformPoint(transform, bounds.x + bounds.width, bounds.y),
+      transformPoint(transform, bounds.x + bounds.width, bounds.y + bounds.height),
+      transformPoint(transform, bounds.x, bounds.y + bounds.height)
+    ];
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+  function transformPoint(transform, x, y) {
+    return {
+      x: transform.a * x + transform.c * y + transform.e,
+      y: transform.b * x + transform.d * y + transform.f
+    };
   }
   function seededRandom(seed) {
     let value = 2166136261;
@@ -1029,18 +1159,18 @@
       if (tile.kind === "star") {
         drawStarSilhouette(state2, ctx2, col, row, tilePx(state2), idealTacoHalfDiagonalPx(state2));
       } else {
-        drawCrossSilhouette(state2, ctx2, col, row, tile.kind, tilePx(state2), idealTacoHalfDiagonalPx(state2));
+        drawCrossGroutFootprint(state2, ctx2, col, row, tile.kind);
       }
     }
   }
   function drawInsetGroutUnderlays(state2, ctx2) {
     for (const [key] of state2.edgeInsets) {
       const edge = parseEdgeKey(key);
-      drawEdgeInsetSilhouette(state2, ctx2, edge.col, edge.row, edge.side, idealTacoSidePx(state2));
+      drawEdgeInsetSilhouette(state2, ctx2, edge.col, edge.row, edge.side, insetGroutFootprintSize(state2));
     }
     for (const [key] of state2.cornerInsets) {
       const corner = parseCornerKey(key);
-      drawCornerInsetSilhouette(state2, ctx2, corner.col, corner.row, corner.corner, idealTacoSidePx(state2));
+      drawCornerInsetSilhouette(state2, ctx2, corner.col, corner.row, corner.corner, insetGroutFootprintSize(state2));
     }
   }
   function drawPlacedTiles(state2, ctx2) {
@@ -1067,92 +1197,217 @@
     }
   }
   function drawCross(state2, ctx2, col, row, kind, colorId) {
-    const size = baseDrawPx(state2);
-    ctx2.save();
-    applyCellTransform(state2, ctx2, col, row);
-    if (kind === "orthogonalCross") {
-      ctx2.rotate(Math.PI / 4);
-    }
-    traceDiagonalCrossPath(ctx2, size, tacoHalfDiagonalPx(state2));
-    fillMaterialPath(ctx2, colorId, `cross:${kind}:${col}:${row}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
-    ctx2.restore();
+    const polygon = kind === "diagonalCross" ? insetPolygon(diagonalBasePolygon(tilePx(state2), idealTacoHalfDiagonalPx(state2), idealTacoSidePx(state2)), groutInsetPx(state2)) : insetPolygon(orthogonalBasePolygon(tilePx(state2), idealTacoHalfDiagonalPx(state2), idealTacoSidePx(state2)), groutInsetPx(state2));
+    const screenPolygon = cellPolygonToScreen(state2, col, row, polygon);
+    drawMaterialPolygon(ctx2, screenPolygon, colorId, `cross:${kind}:${col}:${row}:${colorId}`);
   }
-  function drawCrossSilhouette(state2, ctx2, col, row, kind, size, notchHalfDiagonal) {
-    ctx2.save();
-    applyCellTransform(state2, ctx2, col, row);
-    if (kind === "orthogonalCross") {
-      ctx2.rotate(Math.PI / 4);
-    }
-    traceDiagonalCrossPath(ctx2, size, notchHalfDiagonal);
-    ctx2.fill();
-    ctx2.restore();
+  function drawCrossGroutFootprint(state2, ctx2, col, row, kind) {
+    const zeroPolygon = kind === "diagonalCross" ? diagonalBasePolygon(tilePx(state2), idealTacoHalfDiagonalPx(state2), idealTacoSidePx(state2)) : orthogonalBasePolygon(tilePx(state2), idealTacoHalfDiagonalPx(state2), idealTacoSidePx(state2));
+    const polygon = outsetPolygon(zeroPolygon, groutInsetPx(state2));
+    fillScreenPolygon(ctx2, cellPolygonToScreen(state2, col, row, polygon));
   }
-  function traceDiagonalCrossPath(ctx2, size, notchHalfDiagonal) {
-    const half = size / 2;
-    const x = (value) => value * size - half;
-    const y = (value) => value * size - half;
-    const notch = notchHalfDiagonal / size;
-    const mouthStart = 0.5 - notch;
-    const mouthEnd = 0.5 + notch;
-    const inward = notch;
-    const outward = 1 - notch;
-    ctx2.beginPath();
-    ctx2.moveTo(x(0), y(0));
-    ctx2.lineTo(x(mouthStart), y(0));
-    ctx2.lineTo(x(0.5), y(inward));
-    ctx2.lineTo(x(mouthEnd), y(0));
-    ctx2.lineTo(x(1), y(0));
-    ctx2.lineTo(x(1), y(mouthStart));
-    ctx2.lineTo(x(outward), y(0.5));
-    ctx2.lineTo(x(1), y(mouthEnd));
-    ctx2.lineTo(x(1), y(1));
-    ctx2.lineTo(x(mouthEnd), y(1));
-    ctx2.lineTo(x(0.5), y(outward));
-    ctx2.lineTo(x(mouthStart), y(1));
-    ctx2.lineTo(x(0), y(1));
-    ctx2.lineTo(x(0), y(mouthEnd));
-    ctx2.lineTo(x(inward), y(0.5));
-    ctx2.lineTo(x(0), y(mouthStart));
-    ctx2.closePath();
+  function insetGroutFootprintSize(state2) {
+    return idealTacoSidePx(state2) + groutPx(state2);
   }
   function drawStar(state2, ctx2, col, row, colorId) {
-    const body = baseDrawPx(state2) / 2;
-    const point = body + tacoHalfDiagonalPx(state2);
-    const pointBase = tacoHalfDiagonalPx(state2);
-    ctx2.save();
-    applyCellTransform(state2, ctx2, col, row);
-    traceStarPath(ctx2, body, point, pointBase);
-    fillMaterialPath(ctx2, colorId, `star:${col}:${row}:${colorId}`, { x: -point, y: -point, width: point * 2, height: point * 2 });
-    ctx2.restore();
+    const polygon = insetPolygon(starPolygon(tilePx(state2), idealTacoHalfDiagonalPx(state2)), groutInsetPx(state2));
+    const screenPolygon = cellPolygonToScreen(state2, col, row, polygon);
+    drawMaterialPolygon(ctx2, screenPolygon, colorId, `star:${col}:${row}:${colorId}`);
   }
   function drawStarSilhouette(state2, ctx2, col, row, size, pointHalfDiagonal) {
+    fillScreenPolygon(ctx2, cellPolygonToScreen(state2, col, row, outsetPolygon(starPolygon(size, pointHalfDiagonal), groutInsetPx(state2))));
+  }
+  function groutInsetPx(state2) {
+    return groutPx(state2) / 2;
+  }
+  function orthogonalBasePolygon(size, tacoHalfDiagonal, tacoSide) {
+    const half = size / 2;
+    const point = half + tacoHalfDiagonal;
+    const cut = half - tacoSide;
+    return [
+      [0, -point],
+      [cut, -half],
+      [cut, -cut],
+      [half, -cut],
+      [point, 0],
+      [half, cut],
+      [cut, cut],
+      [cut, half],
+      [0, point],
+      [-cut, half],
+      [-cut, cut],
+      [-half, cut],
+      [-point, 0],
+      [-half, -cut],
+      [-cut, -cut],
+      [-cut, -half]
+    ];
+  }
+  function diagonalBasePolygon(size, tacoHalfDiagonal, tacoSide) {
+    const half = size / 2;
+    const notchDepth = tacoSide;
+    return [
+      [-half, -half],
+      [-tacoHalfDiagonal, -half],
+      [0, -notchDepth],
+      [tacoHalfDiagonal, -half],
+      [half, -half],
+      [half, -tacoHalfDiagonal],
+      [notchDepth, 0],
+      [half, tacoHalfDiagonal],
+      [half, half],
+      [tacoHalfDiagonal, half],
+      [0, notchDepth],
+      [-tacoHalfDiagonal, half],
+      [-half, half],
+      [-half, tacoHalfDiagonal],
+      [-notchDepth, 0],
+      [-half, -tacoHalfDiagonal]
+    ];
+  }
+  function starPolygon(size, pointHalfDiagonal) {
     const body = size / 2;
     const point = body + pointHalfDiagonal;
-    ctx2.save();
-    applyCellTransform(state2, ctx2, col, row);
-    traceStarPath(ctx2, body, point, pointHalfDiagonal);
-    ctx2.fill();
-    ctx2.restore();
+    return [
+      [-body, -body],
+      [-pointHalfDiagonal, -body],
+      [0, -point],
+      [pointHalfDiagonal, -body],
+      [body, -body],
+      [body, -pointHalfDiagonal],
+      [point, 0],
+      [body, pointHalfDiagonal],
+      [body, body],
+      [pointHalfDiagonal, body],
+      [0, point],
+      [-pointHalfDiagonal, body],
+      [-body, body],
+      [-body, pointHalfDiagonal],
+      [-point, 0],
+      [-body, -pointHalfDiagonal]
+    ];
   }
-  function traceStarPath(ctx2, body, point, pointBase) {
+  function squarePolygon(size) {
+    const half = size / 2;
+    return [
+      [-half, -half],
+      [half, -half],
+      [half, half],
+      [-half, half]
+    ];
+  }
+  function edgeMidpointLocal(state2, side) {
+    const halfTile = tilePx(state2) / 2;
+    if (side === "n") {
+      return [0, -halfTile];
+    }
+    if (side === "e") {
+      return [halfTile, 0];
+    }
+    if (side === "s") {
+      return [0, halfTile];
+    }
+    return [-halfTile, 0];
+  }
+  function edgeInsetPolygonLocal(state2, side, size) {
+    const center = edgeMidpointLocal(state2, side);
+    const halfDiagonal = size / Math.SQRT2;
+    return [
+      [center[0], center[1] - halfDiagonal],
+      [center[0] + halfDiagonal, center[1]],
+      [center[0], center[1] + halfDiagonal],
+      [center[0] - halfDiagonal, center[1]]
+    ];
+  }
+  function cornerInsetCenterLocal(state2, corner) {
+    const halfTile = tilePx(state2) / 2;
+    const centerOffset = groutPx(state2) / 2 + cornerTacoSidePx(state2) / 2;
+    const x = corner === "nw" || corner === "sw" ? -halfTile + centerOffset : halfTile - centerOffset;
+    const y = corner === "nw" || corner === "ne" ? -halfTile + centerOffset : halfTile - centerOffset;
+    return [x, y];
+  }
+  function translatePolygon(points, offset) {
+    return points.map((point) => addPoint(point, offset));
+  }
+  function cellPolygonToScreen(state2, col, row, points) {
+    return points.map(([x, y]) => {
+      const point = cellLocalToScreen(state2, col, row, x, y);
+      return [point.x, point.y];
+    });
+  }
+  function drawMaterialPolygon(ctx2, points, colorId, seed) {
+    tracePolygonPath(ctx2, points);
+    fillMaterialPath(ctx2, colorId, seed, polygonBounds(points));
+  }
+  function fillScreenPolygon(ctx2, points) {
+    tracePolygonPath(ctx2, points);
+    ctx2.fill();
+  }
+  function insetPolygon(points, distance2) {
+    const center = polygonCentroid(points);
+    const shiftedLines = points.map((point, index) => {
+      const next = points[(index + 1) % points.length];
+      const dx = next[0] - point[0];
+      const dy = next[1] - point[1];
+      const length = Math.hypot(dx, dy) || 1;
+      const normalA = [-dy / length, dx / length];
+      const normalB = [dy / length, -dx / length];
+      const midpoint = [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2];
+      const normal = distanceBetween(addPoint(midpoint, normalA), center) < distanceBetween(addPoint(midpoint, normalB), center) ? normalA : normalB;
+      const offset = [normal[0] * distance2, normal[1] * distance2];
+      return {
+        start: addPoint(point, offset),
+        end: addPoint(next, offset)
+      };
+    });
+    return points.map((point, index) => {
+      const previous = shiftedLines[(index - 1 + shiftedLines.length) % shiftedLines.length];
+      const current = shiftedLines[index];
+      return lineIntersection(previous.start, previous.end, current.start, current.end) ?? point;
+    });
+  }
+  function outsetPolygon(points, distance2) {
+    return insetPolygon(points, -distance2);
+  }
+  function polygonCentroid(points) {
+    const total = points.reduce((sum, point) => [sum[0] + point[0], sum[1] + point[1]], [0, 0]);
+    return [total[0] / points.length, total[1] / points.length];
+  }
+  function addPoint(a, b) {
+    return [a[0] + b[0], a[1] + b[1]];
+  }
+  function distanceBetween(a, b) {
+    return Math.hypot(a[0] - b[0], a[1] - b[1]);
+  }
+  function lineIntersection(a1, a2, b1, b2) {
+    const dax = a2[0] - a1[0];
+    const day = a2[1] - a1[1];
+    const dbx = b2[0] - b1[0];
+    const dby = b2[1] - b1[1];
+    const denominator = dax * dby - day * dbx;
+    if (Math.abs(denominator) < 1e-6) {
+      return void 0;
+    }
+    const t = ((b1[0] - a1[0]) * dby - (b1[1] - a1[1]) * dbx) / denominator;
+    return [a1[0] + t * dax, a1[1] + t * day];
+  }
+  function tracePolygonPath(ctx2, points) {
+    const [first, ...rest] = points;
     ctx2.beginPath();
-    ctx2.moveTo(-body, -body);
-    ctx2.lineTo(-pointBase, -body);
-    ctx2.lineTo(0, -point);
-    ctx2.lineTo(pointBase, -body);
-    ctx2.lineTo(body, -body);
-    ctx2.lineTo(body, -pointBase);
-    ctx2.lineTo(point, 0);
-    ctx2.lineTo(body, pointBase);
-    ctx2.lineTo(body, body);
-    ctx2.lineTo(pointBase, body);
-    ctx2.lineTo(0, point);
-    ctx2.lineTo(-pointBase, body);
-    ctx2.lineTo(-body, body);
-    ctx2.lineTo(-body, pointBase);
-    ctx2.lineTo(-point, 0);
-    ctx2.lineTo(-body, -pointBase);
+    ctx2.moveTo(first[0], first[1]);
+    for (const point of rest) {
+      ctx2.lineTo(point[0], point[1]);
+    }
     ctx2.closePath();
+  }
+  function polygonBounds(points) {
+    const xs = points.map((point) => point[0]);
+    const ys = points.map((point) => point[1]);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }
   function drawInsets(state2, ctx2) {
     for (const [key, inset] of state2.edgeInsets) {
@@ -1165,42 +1420,24 @@
     }
   }
   function drawEdgeInset(state2, ctx2, col, row, side, colorId) {
-    const point = edgeMidpoint(state2, col, row, side);
     const size = tacoSidePx(state2);
-    ctx2.save();
-    ctx2.translate(point.x, point.y);
-    ctx2.rotate(layoutRotation(state2) + Math.PI / 4);
-    ctx2.beginPath();
-    ctx2.rect(-size / 2, -size / 2, size, size);
-    fillMaterialPath(ctx2, colorId, `edge:${col}:${row}:${side}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
-    ctx2.restore();
+    const polygon = edgeInsetPolygonLocal(state2, side, size);
+    const screenPolygon = cellPolygonToScreen(state2, col, row, polygon);
+    drawMaterialPolygon(ctx2, screenPolygon, colorId, `edge:${col}:${row}:${side}:${colorId}`);
   }
   function drawEdgeInsetSilhouette(state2, ctx2, col, row, side, size) {
-    const point = edgeMidpoint(state2, col, row, side);
-    ctx2.save();
-    ctx2.translate(point.x, point.y);
-    ctx2.rotate(layoutRotation(state2) + Math.PI / 4);
-    ctx2.fillRect(-size / 2, -size / 2, size, size);
-    ctx2.restore();
+    fillScreenPolygon(ctx2, cellPolygonToScreen(state2, col, row, edgeInsetPolygonLocal(state2, side, size)));
   }
   function drawCornerInset(state2, ctx2, col, row, corner, colorId) {
-    const size = tacoSidePx(state2);
-    const center = cornerInsetCenter(state2, col, row, corner);
-    ctx2.save();
-    ctx2.translate(center.x, center.y);
-    ctx2.rotate(layoutRotation(state2));
-    ctx2.beginPath();
-    ctx2.rect(-size / 2, -size / 2, size, size);
-    fillMaterialPath(ctx2, colorId, `corner:${col}:${row}:${corner}:${colorId}`, { x: -size / 2, y: -size / 2, width: size, height: size });
-    ctx2.restore();
+    const size = cornerTacoSidePx(state2);
+    const center = cornerInsetCenterLocal(state2, corner);
+    const polygon = translatePolygon(squarePolygon(size), center);
+    const screenPolygon = cellPolygonToScreen(state2, col, row, polygon);
+    drawMaterialPolygon(ctx2, screenPolygon, colorId, `corner:${col}:${row}:${corner}:${colorId}`);
   }
   function drawCornerInsetSilhouette(state2, ctx2, col, row, corner, size) {
-    const center = cornerInsetCenter(state2, col, row, corner);
-    ctx2.save();
-    ctx2.translate(center.x, center.y);
-    ctx2.rotate(layoutRotation(state2));
-    ctx2.fillRect(-size / 2, -size / 2, size, size);
-    ctx2.restore();
+    const center = cornerInsetCenterLocal(state2, corner);
+    fillScreenPolygon(ctx2, cellPolygonToScreen(state2, col, row, translatePolygon(squarePolygon(size), center)));
   }
   function drawPlaceholderGrid(state2, ctx2) {
     const tile = tilePx(state2);
@@ -1241,11 +1478,6 @@
     ctx2.setLineDash([]);
     ctx2.strokeRect(2, 2, room.width - 4, room.height - 4);
     ctx2.restore();
-  }
-  function applyCellTransform(state2, ctx2, col, row) {
-    const center = cellLocalToScreen(state2, col, row, 0, 0);
-    ctx2.translate(center.x, center.y);
-    ctx2.rotate(layoutRotation(state2));
   }
   function escapeHtml(text) {
     return text.replace(/[&<>"']/g, (char) => {
@@ -1481,24 +1713,6 @@
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
   var materialSwatchCache = /* @__PURE__ */ new Map();
-  var ERASER_CURSOR = svgCursor(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 19 8l8 8-10 10H11z"/><path fill="black" d="M11 26h17v3H11z"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 11 26h6l4-4-8-8z"/></svg>`,
-    6,
-    21,
-    "crosshair"
-  );
-  var PAINT_ROLLER_CURSOR = svgCursor(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="black" d="M16 1 19 5h-6z"/><rect x="4" y="5" width="20" height="7" rx="2" fill="white" stroke="black" stroke-width="2"/><path fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M24 8.5h4v7.5H17v4"/><path fill="white" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 20h6v9h-6z"/></svg>`,
-    16,
-    1,
-    "crosshair"
-  );
-  var DROPPER_CURSOR = svgCursor(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(45 16 16)"><path fill="black" d="M11 7c0-4 5-7 5-7s5 3 5 7c0 3-2 6-5 6s-5-3-5-6z"/><rect x="14" y="12" width="4" height="16" rx="1" fill="white" stroke="black" stroke-width="2"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M14 28h4l-2 3z"/></g></svg>`,
-    24,
-    28,
-    "copy"
-  );
   setupCanvas();
   setupControls();
   syncControls();
@@ -1520,15 +1734,12 @@
     }
     return element;
   }
-  function svgCursor(svg, hotspotX, hotspotY, fallback) {
-    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hotspotX} ${hotspotY}, ${fallback}`;
-  }
   function setupControls() {
     tooltipControls.forEach(attachSwatchTooltip);
     modeInputs.forEach((input) => {
-      input.addEventListener("change", () => {
+      input.addEventListener("click", () => {
         if (input.checked) {
-          state.mode = input.value;
+          switchLayoutMode(input.value);
           updateUrl(state);
           render();
         }
@@ -1608,7 +1819,31 @@
     canvas.addEventListener("pointerleave", handlePointerLeave);
     window.addEventListener("wheel", handleWheel, { passive: false });
   }
+  function switchLayoutMode(nextMode) {
+    if (state.mode !== nextMode) {
+      const center = roomCenter(state);
+      const localCenterBefore = screenToGridLocal(state, center);
+      state.mode = nextMode;
+      const angle = layoutRotation(state);
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const rotatedCenter = {
+        x: localCenterBefore.x * cos - localCenterBefore.y * sin,
+        y: localCenterBefore.x * sin + localCenterBefore.y * cos
+      };
+      state.offsetXInches = roundToHalfInch(-rotatedCenter.x / SCALE);
+      state.offsetYInches = roundToHalfInch(-rotatedCenter.y / SCALE);
+    }
+    state.tool = "grab";
+    state.paintShape = void 0;
+    syncModeClass();
+    syncInteractionControls();
+    renderToolIcons();
+    syncPaletteState();
+    updateCanvasCursor();
+  }
   function syncControls() {
+    syncModeClass();
     modeInputs.forEach((input) => {
       input.checked = input.value === state.mode;
     });
@@ -1636,6 +1871,9 @@
   }
   function syncSpecs() {
     roomSpec.textContent = `${state.roomWidthInches}" x ${state.roomHeightInches}"`;
+  }
+  function syncModeClass() {
+    document.body.classList.toggle("mode-diagonal", state.mode === "diagonal");
   }
   function renderPalette() {
     palette.innerHTML = "";
@@ -1695,89 +1933,13 @@
       }
       const iconCtx = requiredElement(icon.getContext("2d"), "tool icon canvas context");
       iconCtx.clearRect(0, 0, icon.width, icon.height);
-      traceToolIconPath(iconCtx, shape);
+      traceToolIconPath(iconCtx, shape, state.mode);
       fillMaterialPath(iconCtx, state.colorId, `tool-icon:${shape}:${state.colorId}`, { x: 0, y: 0, width: icon.width, height: icon.height });
-      traceToolIconPath(iconCtx, shape);
+      traceToolIconPath(iconCtx, shape, state.mode);
       iconCtx.lineWidth = 2;
       iconCtx.strokeStyle = "#050505";
       iconCtx.stroke();
     }
-  }
-  function traceToolIconPath(ctx2, shape) {
-    ctx2.beginPath();
-    if (shape === "orthogonalCross") {
-      tracePolygon(ctx2, [
-        [50, 0],
-        [66.3, 16.3],
-        [66.3, 33.8],
-        [83.8, 33.8],
-        [100, 50],
-        [83.8, 66.3],
-        [66.3, 66.3],
-        [66.3, 83.8],
-        [50, 100],
-        [33.8, 83.8],
-        [33.8, 66.3],
-        [16.3, 66.3],
-        [0, 50],
-        [16.3, 33.8],
-        [33.8, 33.8],
-        [33.8, 16.3]
-      ]);
-    } else if (shape === "diagonalCross") {
-      tracePolygon(ctx2, [
-        [10, 10],
-        [36, 10],
-        [50, 24],
-        [64, 10],
-        [90, 10],
-        [90, 36],
-        [76, 50],
-        [90, 64],
-        [90, 90],
-        [64, 90],
-        [50, 76],
-        [36, 90],
-        [10, 90],
-        [10, 64],
-        [24, 50],
-        [10, 36]
-      ]);
-    } else if (shape === "star") {
-      tracePolygon(ctx2, [
-        [16, 16],
-        [36, 16],
-        [50, 0],
-        [64, 16],
-        [84, 16],
-        [84, 36],
-        [100, 50],
-        [84, 64],
-        [84, 84],
-        [64, 84],
-        [50, 100],
-        [36, 84],
-        [16, 84],
-        [16, 64],
-        [0, 50],
-        [16, 36]
-      ]);
-    } else {
-      tracePolygon(ctx2, [
-        [50, 14],
-        [86, 50],
-        [50, 86],
-        [14, 50]
-      ]);
-    }
-  }
-  function tracePolygon(ctx2, points) {
-    const [first, ...rest] = points;
-    ctx2.moveTo(first[0], first[1]);
-    for (const point of rest) {
-      ctx2.lineTo(point[0], point[1]);
-    }
-    ctx2.closePath();
   }
   function materialTooltipText(manufacturerId, colorId) {
     const manufacturer = MANUFACTURERS.find((candidate) => candidate.id === manufacturerId);
@@ -1999,7 +2161,7 @@ by ${manufacturer.name}`;
     } else if (state.tool !== "paint" || !state.paintShape) {
       return;
     } else if (state.paintShape === "orthogonalCross" || state.paintShape === "diagonalCross") {
-      placeCross(state, cell.col, cell.row, state.paintShape, state.colorId);
+      placeCross(state, cell.col, cell.row, crossKindForPaintShape(state.paintShape), state.colorId);
     } else if (state.paintShape === "star") {
       placeStar(state, cell.col, cell.row, state.colorId);
     } else {
@@ -2007,6 +2169,12 @@ by ${manufacturer.name}`;
     }
     updateUrl(state);
     render();
+  }
+  function crossKindForPaintShape(shape) {
+    if (state.mode !== "diagonal") {
+      return shape;
+    }
+    return shape === "orthogonalCross" ? "diagonalCross" : "orthogonalCross";
   }
   function pickColorFromPointer(point) {
     const cell = cellFromPoint(state, point);

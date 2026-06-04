@@ -177,6 +177,10 @@ h2 {
   vector-effect: non-scaling-stroke;
 }
 
+.mode-diagonal .grout-icon path {
+  d: path("M26 26 74 74M74 26 26 74");
+}
+
 .grout-width-1 {
   stroke-width: 1px;
 }
@@ -229,8 +233,23 @@ h2 {
   stroke: none;
 }
 
+.mode-diagonal .layout-layer-icon .layer-grid {
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+.mode-diagonal .layout-layer-icon .layer-taco {
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
 .icon-half-gap {
   min-width: 0;
+}
+
+.mode-diagonal .size-icon rect {
+  transform: rotate(45deg) scale(0.74);
+  transform-origin: center;
 }
 
 .tool-icon-tile {

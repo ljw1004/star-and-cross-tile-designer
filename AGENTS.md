@@ -35,6 +35,7 @@ Source file index:
 - `src/geometry.ts`: Converts between room, grid, cell, edge, and screen coordinates, including zoom, resize hit-testing, and tile geometry dimensions.
 - `src/keys.ts`: Creates and parses stable map keys for cells, edge tacos, corner tacos, neighbors, and canonical shared edges.
 - `src/model.ts`: Applies painting operations to state, including conflict-fixing tile placement, erase, color-only, taco placement, and automatic taco pruning.
+- `src/icons.ts`: Defines custom cursor SVG data URLs and traces the material-filled tile tool icon paths.
 - `src/conflicts.ts`: Analyzes the current layout for impossible tile/taco conflicts and produces user-facing conflict messages.
 - `src/render.ts`: Draws the room, placeholder grid, grout underlay silhouettes, tiles, tacos, and conflict banner into the canvas/DOM.
 - `src/material.ts`: Renders clipped material fills for tile paths using deterministic texture, variation, grain, clouding, chips, and sheen.
@@ -48,13 +49,19 @@ The image uses three physical pieces:
 - The 6.5"x6.5" "Star" tile is the complementary piece. It has convex points centered on its four edges; each point fits into the edge notch of an adjoining Base tile.
 - The 1.25"x1.25" "Taco" tile is the small square inset. In diagonal mode it is rotated 45 degrees and fits into an edge notch where there is no Star. In straight mode the same idea is rotated with the pattern, so the inset is axis-aligned and sits at a corner.
 
-For rendering, treat the Base size as the single governing measurement. Let `B` be the rendered Base square after grout has been allocated equally on each side. Then:
+For rendering, treat the Base size as the single governing measurement. Model 2 in `cross-and-star.png` is the authoritative fitting reference. The ideal zero-grout geometry comes from the interlock between one axis-aligned Base square and the same Base square rotated 45 degrees. Let `A` be half of the rendered Base side, after grout has been allocated. Then:
 
-- The Taco side length is `B / 4`.
-- The Taco half-diagonal is `(B / 4) / sqrt(2)`.
-- Each Base notch is the inward half of that same rotated Taco square, so both the notch depth and notch half-mouth are the Taco half-diagonal.
-- Each Star point is the outward half of that same rotated Taco square, so the Star point geometry is identical to the Taco notch geometry.
-- The Star's corner shoulders and side points must be constructed from the same Base-derived units; do not tune Star, Base, and Taco geometry independently.
+- `B = sqrt(2) - 1`.
+- `C = 2 - sqrt(2)`.
+- `B + C = 1`.
+- The Taco side length is `C * A`.
+- The Taco half-diagonal is `B * A`.
+- Each Base notch is the inward half of that same Taco square, so both the notch depth and notch half-mouth are `B * A`.
+- Each Star point is the outward half of that same Taco geometry, so Star point geometry is identical to Base notch and Taco geometry.
+- The orthogonal cross and diagonal cross are the same Base polygon; only their orientation changes. Do not tune their sizes independently.
+- Grout width is the full joint width. Let `g` be half of that width. For visible tile fill, every physical edge moves inward by `g` measured perpendicular to that edge. Axis-aligned edges shift by `g` in x/y; diagonal-edge vertices therefore shift by `g * sqrt(2)` in axis coordinates where the two shifted diagonal lines meet.
+- Grout underlays use the same zero-grout polygon expanded outward by `g`, not just the zero-grout polygon. This deliberately overlaps adjacent grout underlays and prevents one-pixel seams, especially on diagonals.
+- Compute tile, taco, star, and grout geometry as explicit point lists. Do not rely on Canvas rotation, stroke width, or other drawing-side conveniences to create tile geometry; Canvas should only fill already-computed polygons.
 
 The useful fitting rules for the app:
 
@@ -72,6 +79,6 @@ Note that tiles can overlap placeholders. For instance the star overlaps all adj
 2. Sizes: You can alter room size by dragging its edges, and drag the tile offset by using the grabber, and alter tile size
 3. Rendering: we put in real manufacturers, with palette+texture, and real grout.  Add a material-picker in the color dropdown, which picks up a material and switches the manufacturer dropdown to that one. We'll use the user-facing name "color" even though it truly refers to color+texture. See RENDER.md
 4. UX: change UX model to "paint-with-tile" vs "paint-color-only" vs "grab/erase/pick". Use icons for everything. Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can: dropper, erase, paint
-5. Diagonal: Diagonal/straight should switch tool to grabber. Also rotate around current center, not 0x0. Also lots of icons should change. Also the ortho/diag cross icons shouldn't change icon, but should change meaning when you click.
-6. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Diagonal shouldn't alter angle of gloss.
+5. Diagonal: Diagonal/straight should switch tool to grabber. Also rotate around current center, not 0x0. Also lots of icons should change. Also the ortho/diag cross icons shouldn't change icon, but should change meaning when you click. And the reflective highlights shouldn't rotate.
+6. Polish: compact URL. Metadata: keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square".
 7. Touch: make it touch-friendly for use on an ipad or iphone.

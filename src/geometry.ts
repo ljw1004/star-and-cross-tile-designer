@@ -7,6 +7,8 @@ import {
 import { canonicalEdgeKey, cornerKey } from "./keys";
 import type { AppState, Corner, Point, ResizeHandle, Side, TacoTarget } from "./types";
 
+const IDEAL_TACO_TO_HALF_BASE = 2 - Math.SQRT2;
+
 export function initialZoomForRoom(workspace: HTMLElement, roomWidthInches: number, roomHeightInches: number): number {
   const style = getComputedStyle(workspace);
   const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
@@ -46,8 +48,12 @@ export function tacoSidePx(state: AppState): number {
   return Math.max(1, idealTacoSidePx(state) - groutPx(state));
 }
 
+export function cornerTacoSidePx(state: AppState): number {
+  return tacoSidePx(state);
+}
+
 export function idealTacoSidePx(state: AppState): number {
-  return tilePx(state) / 4;
+  return (tilePx(state) / 2) * IDEAL_TACO_TO_HALF_BASE;
 }
 
 export function tacoHalfDiagonalPx(state: AppState): number {
@@ -233,7 +239,7 @@ export function edgeMidpoint(state: AppState, col: number, row: number, side: Si
 
 export function cornerInsetCenter(state: AppState, col: number, row: number, corner: Corner): Point {
   const halfTile = tilePx(state) / 2;
-  const centerOffset = groutPx(state) / 2 + tacoSidePx(state) / 2;
+  const centerOffset = groutPx(state) / 2 + cornerTacoSidePx(state) / 2;
   const x = corner === "nw" || corner === "sw" ? -halfTile + centerOffset : halfTile - centerOffset;
   const y = corner === "nw" || corner === "ne" ? -halfTile + centerOffset : halfTile - centerOffset;
   return cellLocalToScreen(state, col, row, x, y);
