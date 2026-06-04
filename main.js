@@ -1851,7 +1851,7 @@
   var previousNonGrabMode;
   var colorToastTimer;
   var visualViewportBottomReserve = 0;
-  var lastWorkspaceTap;
+  var lastDocumentTap;
   var lastPaintKey = "";
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
@@ -2005,7 +2005,7 @@
     workspace.addEventListener("pointermove", handleWorkspacePointerMove);
     workspace.addEventListener("pointerup", handleWorkspacePointerUp);
     workspace.addEventListener("pointercancel", handleWorkspacePointerCancel);
-    workspace.addEventListener("touchend", preventWorkspaceDoubleTapZoom, { passive: false });
+    document.addEventListener("touchend", preventDoubleTapZoom, { capture: true, passive: false });
     window.addEventListener("wheel", handleWheel, { passive: false });
     window.addEventListener("resize", scheduleVisualViewportSync);
     window.addEventListener("orientationchange", resetVisualViewportReserve);
@@ -2063,14 +2063,14 @@
       event.preventDefault();
     }
   }
-  function preventWorkspaceDoubleTapZoom(event) {
-    if (event.changedTouches.length !== 1 || touchPointers.size > 0) {
+  function preventDoubleTapZoom(event) {
+    if (event.changedTouches.length !== 1) {
       return;
     }
     const touch = event.changedTouches[0];
     const now = window.performance.now();
-    const previous = lastWorkspaceTap;
-    lastWorkspaceTap = { time: now, x: touch.clientX, y: touch.clientY };
+    const previous = lastDocumentTap;
+    lastDocumentTap = { time: now, x: touch.clientX, y: touch.clientY };
     if (!previous) {
       return;
     }
