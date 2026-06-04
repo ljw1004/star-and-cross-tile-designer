@@ -9,14 +9,14 @@ export const MAX_ROOM_WIDTH_INCHES = 180;
 export const MAX_ROOM_HEIGHT_INCHES = 240;
 export const BORDER_HANDLE_PX = 8;
 export const MIN_ZOOM = 0.5;
-export const MAX_ZOOM = 3;
+export const MAX_ZOOM = 8;
 export const ZOOM_FACTOR = 1.12;
 export const SCALE = 8;
 export const URL_VERSION = "1";
 export const SIDES: Side[] = ["n", "e", "s", "w"];
 export const CORNERS: Corner[] = ["nw", "ne", "se", "sw"];
 export const DEFAULT_GROUT_COLOR_ID = "warm-white";
-export const GROUT_JOINT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
+export const GROUT_JOINT_OPTIONS = [1, 2, 3, 4, 6, 8];
 
 export const MANUFACTURERS: Manufacturer[] = [
   {
@@ -138,7 +138,8 @@ export const DEFAULT_STATE: AppState = {
   zoom: 1,
   groutColorId: DEFAULT_GROUT_COLOR_ID,
   groutJointSixteenths: MANUFACTURERS[0].defaultGroutJointSixteenths,
-  brush: "orthogonalCross",
+  tool: "paint",
+  paintShape: "orthogonalCross",
   manufacturerId: MANUFACTURERS[0].id,
   colorId: MANUFACTURERS[0].colors[0].id,
   cells: new Map(),

@@ -71,6 +71,7 @@ Note that tiles can overlap placeholders. For instance the star overlaps all adj
 1. MVP: A fixed room, fixed tile size, a toggle for diagonal/straight, basic URL encoding, and lets you paint from a dummy manufacturer palette.
 2. Sizes: You can alter room size by dragging its edges, and drag the tile offset by using the grabber, and alter tile size
 3. Rendering: we put in real manufacturers, with palette+texture, and real grout.  Add a material-picker in the color dropdown, which picks up a material and switches the manufacturer dropdown to that one. We'll use the user-facing name "color" even though it truly refers to color+texture. See RENDER.md
-4. UX: change UX model to "paint-with-tile" vs "paint-color-only" vs "grab/erase/pick".
-5. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can.
-6. Touch: make it touch-friendly for use on an ipad or iphone.
+4. UX: change UX model to "paint-with-tile" vs "paint-color-only" vs "grab/erase/pick". Use icons for everything. Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can: dropper, erase, paint
+5. Diagonal: Diagonal/straight should switch tool to grabber. Also rotate around current center, not 0x0. Also lots of icons should change. Also the ortho/diag cross icons shouldn't change icon, but should change meaning when you click.
+6. Polish: compact URL. Metadata. Keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square". Diagonal shouldn't alter angle of gloss.
+7. Touch: make it touch-friendly for use on an ipad or iphone.

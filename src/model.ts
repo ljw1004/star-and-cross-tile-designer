@@ -5,16 +5,20 @@ import { canonicalEdgeKey, cellKey, cellsForEdge, cornerKey, neighborForSide, ne
 import type { AppState, Corner, CrossKind, Point, Side, TacoEraseCandidate } from "./types";
 
 export function paintKey(state: AppState, point: Point, col: number, row: number): string {
-  if (state.brush === "erase") {
+  if (state.tool === "erase") {
     return `erase:${elementKeyAtPoint(state, point, col, row)}`;
   }
 
-  if (state.brush === "colorOnly") {
+  if (state.tool === "paint" && !state.paintShape) {
     return `color:${elementKeyAtPoint(state, point, col, row)}`;
   }
 
-  if (state.brush !== "inset") {
-    return `${state.brush}:${col},${row}`;
+  if (state.tool !== "paint" || !state.paintShape) {
+    return `${state.tool}:${col},${row}`;
+  }
+
+  if (state.paintShape !== "inset") {
+    return `${state.paintShape}:${col},${row}`;
   }
 
   const target = nearestTacoTarget(state, point, col, row);

@@ -10,14 +10,14 @@
   var MAX_ROOM_HEIGHT_INCHES = 240;
   var BORDER_HANDLE_PX = 8;
   var MIN_ZOOM = 0.5;
-  var MAX_ZOOM = 3;
+  var MAX_ZOOM = 8;
   var ZOOM_FACTOR = 1.12;
   var SCALE = 8;
   var URL_VERSION = "1";
   var SIDES = ["n", "e", "s", "w"];
   var CORNERS = ["nw", "ne", "se", "sw"];
   var DEFAULT_GROUT_COLOR_ID = "warm-white";
-  var GROUT_JOINT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
+  var GROUT_JOINT_OPTIONS = [1, 2, 3, 4, 6, 8];
   var MANUFACTURERS = [
     {
       id: "equipe-kasbah",
@@ -136,7 +136,8 @@
     zoom: 1,
     groutColorId: DEFAULT_GROUT_COLOR_ID,
     groutJointSixteenths: MANUFACTURERS[0].defaultGroutJointSixteenths,
-    brush: "orthogonalCross",
+    tool: "paint",
+    paintShape: "orthogonalCross",
     manufacturerId: MANUFACTURERS[0].id,
     colorId: MANUFACTURERS[0].colors[0].id,
     cells: /* @__PURE__ */ new Map(),
@@ -561,14 +562,17 @@
 
   // src/model.ts
   function paintKey(state2, point, col, row) {
-    if (state2.brush === "erase") {
+    if (state2.tool === "erase") {
       return `erase:${elementKeyAtPoint(state2, point, col, row)}`;
     }
-    if (state2.brush === "colorOnly") {
+    if (state2.tool === "paint" && !state2.paintShape) {
       return `color:${elementKeyAtPoint(state2, point, col, row)}`;
     }
-    if (state2.brush !== "inset") {
-      return `${state2.brush}:${col},${row}`;
+    if (state2.tool !== "paint" || !state2.paintShape) {
+      return `${state2.tool}:${col},${row}`;
+    }
+    if (state2.paintShape !== "inset") {
+      return `${state2.paintShape}:${col},${row}`;
     }
     const target = nearestTacoTarget(state2, point, col, row);
     return `${target.type}:${target.key}`;
@@ -1266,7 +1270,15 @@
     next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
     next.groutColorId = validGroutColor(params.get("gc")) ?? next.groutColorId;
     next.groutJointSixteenths = validGroutJoint(params.get("gj")) ?? next.groutJointSixteenths;
-    next.brush = validBrush(params.get("b")) ?? next.brush;
+    const parsedTool = validTool(params.get("tl"));
+    if (parsedTool) {
+      next.tool = parsedTool;
+      next.paintShape = parsedTool === "paint" && !params.has("ps") ? void 0 : next.paintShape;
+    }
+    next.paintShape = validPaintShape(params.get("ps")) ?? next.paintShape;
+    if (next.tool !== "paint") {
+      next.paintShape = void 0;
+    }
     next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
     next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
     const layout = params.get("l");
@@ -1288,7 +1300,8 @@
       zoom: DEFAULT_STATE.zoom,
       groutColorId: DEFAULT_STATE.groutColorId,
       groutJointSixteenths: DEFAULT_STATE.groutJointSixteenths,
-      brush: DEFAULT_STATE.brush,
+      tool: DEFAULT_STATE.tool,
+      paintShape: DEFAULT_STATE.paintShape,
       manufacturerId: DEFAULT_STATE.manufacturerId,
       colorId: DEFAULT_STATE.colorId,
       cells: /* @__PURE__ */ new Map(),
@@ -1344,7 +1357,10 @@
     params.set("oy", String(state2.offsetYInches));
     params.set("gc", state2.groutColorId);
     params.set("gj", String(state2.groutJointSixteenths));
-    params.set("b", state2.brush);
+    params.set("tl", state2.tool);
+    if (state2.tool === "paint" && state2.paintShape) {
+      params.set("ps", state2.paintShape);
+    }
     params.set("mf", state2.manufacturerId);
     params.set("c", state2.colorId);
     const layout = serializeLayout(state2);
@@ -1391,8 +1407,11 @@
   function validMode(value) {
     return value === "straight" || value === "diagonal" ? value : void 0;
   }
-  function validBrush(value) {
-    return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" || value === "colorOnly" || value === "colorPicker" || value === "grab" || value === "erase" ? value : void 0;
+  function validTool(value) {
+    return value === "paint" || value === "grab" || value === "erase" || value === "colorPicker" ? value : void 0;
+  }
+  function validPaintShape(value) {
+    return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" ? value : void 0;
   }
   function parseTileKind(value) {
     if (value === "orthogonalCross" || value === "diagonalCross" || value === "star") {
@@ -1439,13 +1458,17 @@
   var canvas = requiredElement(document.querySelector("#room"), "room canvas");
   var workspace = requiredElement(document.querySelector(".workspace"), "workspace");
   var modeInputs = Array.from(document.querySelectorAll("input[name='mode']"));
-  var showGridInput = requiredElement(document.querySelector("#show-grid"), "show grid checkbox");
-  var tileSizeSelect = requiredElement(document.querySelector("#tile-size"), "tile size select");
+  var gridLayerInputs = Array.from(document.querySelectorAll("input[name='grid-layer']"));
+  var tileSizeInputs = Array.from(document.querySelectorAll("input[name='tile-size']"));
   var roomSpec = requiredElement(document.querySelector("#room-spec"), "room spec");
-  var brushInputs = Array.from(document.querySelectorAll("input[name='brush']"));
+  var paintShapeInputs = Array.from(document.querySelectorAll("input[name='paint-shape']"));
+  var toolInputs = Array.from(document.querySelectorAll("input[name='tool']"));
+  var colorPickerTool = requiredElement(document.querySelector("#color-picker-tool"), "color picker tool");
+  var tooltipControls = Array.from(document.querySelectorAll(".tool-button, .icon-button, #color-picker-tool"));
+  var materialToolIcons = Array.from(document.querySelectorAll(".material-tool-icon"));
   var palette = requiredElement(document.querySelector("#palette"), "palette");
   var groutPalette = requiredElement(document.querySelector("#grout-palette"), "grout palette");
-  var groutJointSelect = requiredElement(document.querySelector("#grout-joint"), "grout joint select");
+  var groutJointInputs = Array.from(document.querySelectorAll("input[name='grout-joint']"));
   var clearButton = requiredElement(document.querySelector("#clear"), "clear button");
   var layoutErrors = requiredElement(document.querySelector("#layout-errors"), "layout error panel");
   var ctx = requiredElement(canvas.getContext("2d"), "canvas 2D context");
@@ -1458,6 +1481,24 @@
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
   var materialSwatchCache = /* @__PURE__ */ new Map();
+  var ERASER_CURSOR = svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 19 8l8 8-10 10H11z"/><path fill="black" d="M11 26h17v3H11z"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M6 21 11 26h6l4-4-8-8z"/></svg>`,
+    6,
+    21,
+    "crosshair"
+  );
+  var PAINT_ROLLER_CURSOR = svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="black" d="M16 1 19 5h-6z"/><rect x="4" y="5" width="20" height="7" rx="2" fill="white" stroke="black" stroke-width="2"/><path fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M24 8.5h4v7.5H17v4"/><path fill="white" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 20h6v9h-6z"/></svg>`,
+    16,
+    1,
+    "crosshair"
+  );
+  var DROPPER_CURSOR = svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(45 16 16)"><path fill="black" d="M11 7c0-4 5-7 5-7s5 3 5 7c0 3-2 6-5 6s-5-3-5-6z"/><rect x="14" y="12" width="4" height="16" rx="1" fill="white" stroke="black" stroke-width="2"/><path fill="white" stroke="black" stroke-linejoin="round" stroke-width="2" d="M14 28h4l-2 3z"/></g></svg>`,
+    24,
+    28,
+    "copy"
+  );
   setupCanvas();
   setupControls();
   syncControls();
@@ -1479,13 +1520,11 @@
     }
     return element;
   }
+  function svgCursor(svg, hotspotX, hotspotY, fallback) {
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hotspotX} ${hotspotY}, ${fallback}`;
+  }
   function setupControls() {
-    for (const groutJoint of GROUT_JOINT_OPTIONS) {
-      const option = document.createElement("option");
-      option.value = String(groutJoint);
-      option.textContent = `${groutJoint}/16"`;
-      groutJointSelect.append(option);
-    }
+    tooltipControls.forEach(attachSwatchTooltip);
     modeInputs.forEach((input) => {
       input.addEventListener("change", () => {
         if (input.checked) {
@@ -1495,30 +1534,65 @@
         }
       });
     });
-    showGridInput.addEventListener("change", () => {
-      state.showGrid = showGridInput.checked;
-      updateUrl(state);
-      render();
-    });
-    tileSizeSelect.addEventListener("change", () => {
-      state.tileInches = validTileInches(tileSizeSelect.value) ?? state.tileInches;
-      syncSpecs();
-      updateUrl(state);
-      render();
-    });
-    brushInputs.forEach((input) => {
+    gridLayerInputs.forEach((input) => {
       input.addEventListener("change", () => {
         if (input.checked) {
-          state.brush = input.value;
+          state.showGrid = input.value === "top";
           updateUrl(state);
-          updateCanvasCursor();
+          render();
         }
       });
     });
-    groutJointSelect.addEventListener("change", () => {
-      state.groutJointSixteenths = validGroutJoint(groutJointSelect.value) ?? state.groutJointSixteenths;
+    tileSizeInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          state.tileInches = validTileInches(input.value) ?? state.tileInches;
+          syncSpecs();
+          updateUrl(state);
+          render();
+        }
+      });
+    });
+    paintShapeInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          state.tool = "paint";
+          state.paintShape = input.value;
+          syncInteractionControls();
+          updateUrl(state);
+          updateCanvasCursor();
+          syncPaletteState();
+        }
+      });
+    });
+    toolInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          state.tool = input.value;
+          state.paintShape = void 0;
+          syncInteractionControls();
+          updateUrl(state);
+          updateCanvasCursor();
+          syncPaletteState();
+        }
+      });
+    });
+    colorPickerTool.addEventListener("click", () => {
+      state.tool = "colorPicker";
+      state.paintShape = void 0;
+      syncInteractionControls();
+      syncPaletteState();
       updateUrl(state);
-      render();
+      updateCanvasCursor();
+    });
+    groutJointInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          state.groutJointSixteenths = validGroutJoint(input.value) ?? state.groutJointSixteenths;
+          updateUrl(state);
+          render();
+        }
+      });
     });
     clearButton.addEventListener("click", () => {
       state.cells.clear();
@@ -1538,38 +1612,35 @@
     modeInputs.forEach((input) => {
       input.checked = input.value === state.mode;
     });
-    showGridInput.checked = state.showGrid;
-    tileSizeSelect.value = String(state.tileInches);
-    brushInputs.forEach((input) => {
-      input.checked = input.value === state.brush;
+    gridLayerInputs.forEach((input) => {
+      input.checked = input.value === (state.showGrid ? "top" : "under");
     });
+    tileSizeInputs.forEach((input) => {
+      input.checked = Number(input.value) === state.tileInches;
+    });
+    syncInteractionControls();
+    renderToolIcons();
     renderPalette();
     renderGroutPalette();
     syncGroutControls();
     syncSpecs();
     updateCanvasCursor();
   }
+  function syncInteractionControls() {
+    paintShapeInputs.forEach((input) => {
+      input.checked = state.tool === "paint" && input.value === state.paintShape;
+    });
+    toolInputs.forEach((input) => {
+      input.checked = input.value === state.tool;
+    });
+  }
   function syncSpecs() {
     roomSpec.textContent = `${state.roomWidthInches}" x ${state.roomHeightInches}"`;
   }
   function renderPalette() {
     palette.innerHTML = "";
-    palette.classList.toggle("is-picking", state.brush === "colorPicker");
-    const picker = document.createElement("button");
-    picker.className = "swatch color-picker-swatch";
-    picker.type = "button";
-    picker.dataset.tooltip = "Pick color";
-    picker.setAttribute("aria-label", "Pick color");
-    picker.setAttribute("aria-pressed", String(state.brush === "colorPicker"));
-    picker.addEventListener("click", () => {
-      state.brush = "colorPicker";
-      syncBrushControls();
-      renderPalette();
-      updateUrl(state);
-      updateCanvasCursor();
-    });
-    attachSwatchTooltip(picker);
-    palette.append(picker);
+    palette.classList.toggle("is-picking", state.tool === "colorPicker");
+    colorPickerTool.setAttribute("aria-pressed", String(state.tool === "colorPicker"));
     for (const manufacturer of MANUFACTURERS) {
       const marker = document.createElement("div");
       marker.className = "palette-manufacturer";
@@ -1583,38 +1654,150 @@
         swatch.type = "button";
         swatch.style.backgroundColor = color.value;
         swatch.style.backgroundImage = materialSwatchBackground(color.id);
-        const label = `${color.name}
-(${color.texture.replaceAll("_", " ")})
-by ${manufacturer.name}`;
+        swatch.dataset.colorId = color.id;
+        const label = materialTooltipText(manufacturer.id, color.id) ?? color.name;
         swatch.dataset.tooltip = label;
         swatch.setAttribute("aria-label", label);
-        swatch.setAttribute("aria-pressed", String(state.brush !== "colorPicker" && color.id === state.colorId));
         swatch.addEventListener("click", () => {
           selectColor(manufacturer.id, color.id);
-          if (state.brush === "colorPicker") {
-            switchToColorOnly();
+          if (state.tool !== "paint" || !state.paintShape) {
+            switchToPaintColorOnly();
           }
-          renderPalette();
+          syncInteractionControls();
+          syncPaletteState();
           updateUrl(state);
+          updateCanvasCursor();
         });
         attachSwatchTooltip(swatch);
         palette.append(swatch);
       }
     }
+    syncPaletteState();
+  }
+  function syncPaletteState() {
+    palette.classList.toggle("is-picking", state.tool === "colorPicker");
+    colorPickerTool.setAttribute("aria-pressed", String(state.tool === "colorPicker"));
+    for (const swatch of Array.from(palette.querySelectorAll(".swatch"))) {
+      swatch.setAttribute("aria-pressed", String(state.tool === "paint" && swatch.dataset.colorId === state.colorId));
+      swatch.style.cursor = state.tool === "colorPicker" ? DROPPER_CURSOR : "";
+    }
   }
   function selectColor(manufacturerId, colorId) {
     state.manufacturerId = manufacturerId;
     state.colorId = colorId;
+    renderToolIcons();
   }
-  function switchToColorOnly() {
-    state.brush = "colorOnly";
-    syncBrushControls();
+  function renderToolIcons() {
+    for (const icon of materialToolIcons) {
+      const shape = icon.dataset.toolShape;
+      if (!shape) {
+        continue;
+      }
+      const iconCtx = requiredElement(icon.getContext("2d"), "tool icon canvas context");
+      iconCtx.clearRect(0, 0, icon.width, icon.height);
+      traceToolIconPath(iconCtx, shape);
+      fillMaterialPath(iconCtx, state.colorId, `tool-icon:${shape}:${state.colorId}`, { x: 0, y: 0, width: icon.width, height: icon.height });
+      traceToolIconPath(iconCtx, shape);
+      iconCtx.lineWidth = 2;
+      iconCtx.strokeStyle = "#050505";
+      iconCtx.stroke();
+    }
+  }
+  function traceToolIconPath(ctx2, shape) {
+    ctx2.beginPath();
+    if (shape === "orthogonalCross") {
+      tracePolygon(ctx2, [
+        [50, 0],
+        [66.3, 16.3],
+        [66.3, 33.8],
+        [83.8, 33.8],
+        [100, 50],
+        [83.8, 66.3],
+        [66.3, 66.3],
+        [66.3, 83.8],
+        [50, 100],
+        [33.8, 83.8],
+        [33.8, 66.3],
+        [16.3, 66.3],
+        [0, 50],
+        [16.3, 33.8],
+        [33.8, 33.8],
+        [33.8, 16.3]
+      ]);
+    } else if (shape === "diagonalCross") {
+      tracePolygon(ctx2, [
+        [10, 10],
+        [36, 10],
+        [50, 24],
+        [64, 10],
+        [90, 10],
+        [90, 36],
+        [76, 50],
+        [90, 64],
+        [90, 90],
+        [64, 90],
+        [50, 76],
+        [36, 90],
+        [10, 90],
+        [10, 64],
+        [24, 50],
+        [10, 36]
+      ]);
+    } else if (shape === "star") {
+      tracePolygon(ctx2, [
+        [16, 16],
+        [36, 16],
+        [50, 0],
+        [64, 16],
+        [84, 16],
+        [84, 36],
+        [100, 50],
+        [84, 64],
+        [84, 84],
+        [64, 84],
+        [50, 100],
+        [36, 84],
+        [16, 84],
+        [16, 64],
+        [0, 50],
+        [16, 36]
+      ]);
+    } else {
+      tracePolygon(ctx2, [
+        [50, 14],
+        [86, 50],
+        [50, 86],
+        [14, 50]
+      ]);
+    }
+  }
+  function tracePolygon(ctx2, points) {
+    const [first, ...rest] = points;
+    ctx2.moveTo(first[0], first[1]);
+    for (const point of rest) {
+      ctx2.lineTo(point[0], point[1]);
+    }
+    ctx2.closePath();
+  }
+  function materialTooltipText(manufacturerId, colorId) {
+    const manufacturer = MANUFACTURERS.find((candidate) => candidate.id === manufacturerId);
+    const color = manufacturer?.colors.find((candidate) => candidate.id === colorId);
+    if (!manufacturer || !color) {
+      return void 0;
+    }
+    return `${color.name}
+(${color.texture.replaceAll("_", " ")})
+by ${manufacturer.name}`;
+  }
+  function materialTooltipTextForColor(colorId) {
+    const manufacturer = MANUFACTURERS.find((candidate) => candidate.colors.some((color) => color.id === colorId));
+    return manufacturer ? materialTooltipText(manufacturer.id, colorId) : void 0;
+  }
+  function switchToPaintColorOnly() {
+    state.tool = "paint";
+    state.paintShape = void 0;
+    syncInteractionControls();
     updateCanvasCursor();
-  }
-  function syncBrushControls() {
-    brushInputs.forEach((input) => {
-      input.checked = input.value === state.brush;
-    });
   }
   function materialSwatchBackground(colorId) {
     const cached = materialSwatchCache.get(colorId);
@@ -1673,8 +1856,32 @@ by ${manufacturer.name}`;
   function hideSwatchTooltip() {
     swatchTooltip.classList.remove("is-visible");
   }
+  function showCanvasPickTooltip(event) {
+    if (state.tool !== "colorPicker") {
+      hideSwatchTooltip();
+      return;
+    }
+    const point = canvasPoint(state, canvas, event);
+    if (!point || !pointInRoom(state, point)) {
+      hideSwatchTooltip();
+      return;
+    }
+    const cell = cellFromPoint(state, point);
+    const colorId = colorIdAt(state, point, cell.col, cell.row);
+    const label = colorId ? materialTooltipTextForColor(colorId) : void 0;
+    if (!label) {
+      hideSwatchTooltip();
+      return;
+    }
+    swatchTooltip.textContent = label;
+    swatchTooltip.style.left = `${event.clientX + 12}px`;
+    swatchTooltip.style.top = `${event.clientY - 2}px`;
+    swatchTooltip.classList.add("is-visible");
+  }
   function syncGroutControls() {
-    groutJointSelect.value = String(state.groutJointSixteenths);
+    groutJointInputs.forEach((input) => {
+      input.checked = Number(input.value) === state.groutJointSixteenths;
+    });
   }
   function handlePointerDown(event) {
     lastPaintKey = "";
@@ -1696,7 +1903,7 @@ by ${manufacturer.name}`;
       updateCanvasCursor(point);
       return;
     }
-    if (state.brush === "grab") {
+    if (state.tool === "grab") {
       dragInteraction = {
         type: "grab",
         pointerId: event.pointerId,
@@ -1707,8 +1914,9 @@ by ${manufacturer.name}`;
       updateCanvasCursor(point);
       return;
     }
-    if (state.brush === "colorPicker") {
+    if (state.tool === "colorPicker") {
       pickColorFromPointer(point);
+      hideSwatchTooltip();
       return;
     }
     dragInteraction = { type: "paint", pointerId: event.pointerId };
@@ -1716,6 +1924,7 @@ by ${manufacturer.name}`;
   }
   function handlePointerMove(event) {
     if (!dragInteraction) {
+      showCanvasPickTooltip(event);
       updateCanvasCursor(canvasPoint(state, canvas, event));
       return;
     }
@@ -1745,11 +1954,13 @@ by ${manufacturer.name}`;
       dragInteraction = void 0;
       updateCanvasCursor();
     }
+    hideSwatchTooltip();
   }
   function handlePointerLeave(event) {
     if (!dragInteraction) {
       updateCanvasCursor(canvasPoint(state, canvas, event));
     }
+    hideSwatchTooltip();
   }
   function handleWheel(event) {
     event.preventDefault();
@@ -1781,13 +1992,15 @@ by ${manufacturer.name}`;
       return;
     }
     lastPaintKey = key;
-    if (state.brush === "erase") {
+    if (state.tool === "erase") {
       eraseAt(state, point, cell.col, cell.row);
-    } else if (state.brush === "colorOnly") {
+    } else if (state.tool === "paint" && !state.paintShape) {
       colorOnlyAt(state, point, cell.col, cell.row, state.colorId);
-    } else if (state.brush === "orthogonalCross" || state.brush === "diagonalCross") {
-      placeCross(state, cell.col, cell.row, state.brush, state.colorId);
-    } else if (state.brush === "star") {
+    } else if (state.tool !== "paint" || !state.paintShape) {
+      return;
+    } else if (state.paintShape === "orthogonalCross" || state.paintShape === "diagonalCross") {
+      placeCross(state, cell.col, cell.row, state.paintShape, state.colorId);
+    } else if (state.paintShape === "star") {
       placeStar(state, cell.col, cell.row, state.colorId);
     } else {
       placeInset(state, point, cell.col, cell.row, state.colorId);
@@ -1802,8 +2015,8 @@ by ${manufacturer.name}`;
       return;
     }
     selectColor(manufacturerIdForColor(colorId), colorId);
-    switchToColorOnly();
-    renderPalette();
+    switchToPaintColorOnly();
+    syncPaletteState();
     updateUrl(state);
   }
   function manufacturerIdForColor(colorId) {
@@ -1821,10 +2034,14 @@ by ${manufacturer.name}`;
     const handle = point && pointInRoom(state, point) ? resizeHandleAtPoint(state, point) : void 0;
     if (handle) {
       canvas.style.cursor = resizeCursor(handle);
-    } else if (state.brush === "grab") {
+    } else if (state.tool === "grab") {
       canvas.style.cursor = "grab";
-    } else if (state.brush === "colorPicker") {
-      canvas.style.cursor = "zoom-in";
+    } else if (state.tool === "colorPicker") {
+      canvas.style.cursor = DROPPER_CURSOR;
+    } else if (state.tool === "erase") {
+      canvas.style.cursor = ERASER_CURSOR;
+    } else if (state.tool === "paint" && !state.paintShape) {
+      canvas.style.cursor = PAINT_ROLLER_CURSOR;
     } else {
       canvas.style.cursor = "crosshair";
     }

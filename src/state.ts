@@ -12,7 +12,7 @@ import {
 } from "./constants";
 import { clamp, initialZoomForRoom, normalizeZoom, roundToHalfInch } from "./geometry";
 import { canonicalEdgeKey, cellKey, cornerKey, parseCellKey, parseCornerKey, parseEdgeKey } from "./keys";
-import type { AppState, Brush, Corner, Mode, Side, TileKind } from "./types";
+import type { AppState, Corner, Mode, PaintShape, Side, TileKind, Tool } from "./types";
 
 export function loadState(workspace: HTMLElement): AppState {
   const params = new URLSearchParams(window.location.search);
@@ -27,7 +27,15 @@ export function loadState(workspace: HTMLElement): AppState {
   next.offsetYInches = validHalfInch(params.get("oy")) ?? next.offsetYInches;
   next.groutColorId = validGroutColor(params.get("gc")) ?? next.groutColorId;
   next.groutJointSixteenths = validGroutJoint(params.get("gj")) ?? next.groutJointSixteenths;
-  next.brush = validBrush(params.get("b")) ?? next.brush;
+  const parsedTool = validTool(params.get("tl"));
+  if (parsedTool) {
+    next.tool = parsedTool;
+    next.paintShape = parsedTool === "paint" && !params.has("ps") ? undefined : next.paintShape;
+  }
+  next.paintShape = validPaintShape(params.get("ps")) ?? next.paintShape;
+  if (next.tool !== "paint") {
+    next.paintShape = undefined;
+  }
   next.manufacturerId = validManufacturer(params.get("mf")) ?? next.manufacturerId;
   next.colorId = validColor(next.manufacturerId, params.get("c")) ?? next.colorId;
 
@@ -53,7 +61,8 @@ export function cloneDefaultState(): AppState {
     zoom: DEFAULT_STATE.zoom,
     groutColorId: DEFAULT_STATE.groutColorId,
     groutJointSixteenths: DEFAULT_STATE.groutJointSixteenths,
-    brush: DEFAULT_STATE.brush,
+    tool: DEFAULT_STATE.tool,
+    paintShape: DEFAULT_STATE.paintShape,
     manufacturerId: DEFAULT_STATE.manufacturerId,
     colorId: DEFAULT_STATE.colorId,
     cells: new Map(),
@@ -112,7 +121,10 @@ export function updateUrl(state: AppState): void {
   params.set("oy", String(state.offsetYInches));
   params.set("gc", state.groutColorId);
   params.set("gj", String(state.groutJointSixteenths));
-  params.set("b", state.brush);
+  params.set("tl", state.tool);
+  if (state.tool === "paint" && state.paintShape) {
+    params.set("ps", state.paintShape);
+  }
   params.set("mf", state.manufacturerId);
   params.set("c", state.colorId);
 
@@ -172,17 +184,12 @@ export function validMode(value: string | null): Mode | undefined {
   return value === "straight" || value === "diagonal" ? value : undefined;
 }
 
-export function validBrush(value: string | null): Brush | undefined {
-  return value === "orthogonalCross" ||
-    value === "diagonalCross" ||
-    value === "star" ||
-    value === "inset" ||
-    value === "colorOnly" ||
-    value === "colorPicker" ||
-    value === "grab" ||
-    value === "erase"
-    ? value
-    : undefined;
+export function validTool(value: string | null): Tool | undefined {
+  return value === "paint" || value === "grab" || value === "erase" || value === "colorPicker" ? value : undefined;
+}
+
+export function validPaintShape(value: string | null): PaintShape | undefined {
+  return value === "orthogonalCross" || value === "diagonalCross" || value === "star" || value === "inset" ? value : undefined;
 }
 
 export function parseTileKind(value: string): TileKind | undefined {

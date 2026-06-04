@@ -13,76 +13,131 @@
 
       <section class="control-group">
         <h2>Layout</h2>
-        <label class="radio-row">
-          <input type="radio" name="mode" value="straight" checked>
-          <span>Straight</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="mode" value="diagonal">
-          <span>Diagonal</span>
-        </label>
-        <label class="radio-row">
-          <input type="checkbox" id="show-grid">
-          <span>Show grid</span>
-        </label>
-        <label class="select-label" for="tile-size">Tile size</label>
-        <select id="tile-size">
-          <option value="3">3&quot; x 3&quot;</option>
-          <option value="4">4&quot; x 4&quot;</option>
-          <option value="5">5&quot; x 5&quot;</option>
-          <option value="6">6&quot; x 6&quot;</option>
-          <option value="7">7&quot; x 7&quot;</option>
-          <option value="8">8&quot; x 8&quot;</option>
-        </select>
-        <label class="select-label select-label-spaced" for="grout-joint">Grout</label>
-        <select id="grout-joint"></select>
-        <dl class="specs">
-          <div>
-            <dt>Area</dt>
-            <dd id="room-spec">60&quot; x 96&quot;</dd>
-          </div>
-        </dl>
+        <div class="layout-palette" aria-label="Layout palette">
+          <label class="icon-button" data-tooltip="Straight layout">
+            <input type="radio" name="mode" value="straight" checked aria-label="Straight layout">
+            <svg class="layout-icon layout-grid-icon" viewBox="0 0 100 100" aria-hidden="true">
+              <path d="M24.7 10v80M50 10v80M75.3 10v80M10 24.7h80M10 50h80M10 75.3h80"/>
+            </svg>
+          </label>
+          <label class="icon-button" data-tooltip="Diagonal layout">
+            <input type="radio" name="mode" value="diagonal" aria-label="Diagonal layout">
+            <svg class="layout-icon layout-grid-icon" viewBox="0 0 100 100" aria-hidden="true">
+              <path d="M90 19.3L80.7 10M90 55.2L44.8 10M10 11L89 90M10 46.8L53.2 90M10 82.7L17.3 90M10 27.3L27.3 10M10 63.2L63.2 10M90 19L19 90M90 54.8L54.8 90"/>
+            </svg>
+          </label>
+          <div class="icon-half-gap" aria-hidden="true"></div>
+          <label class="tool-button" data-tooltip="Grabber">
+            <input type="radio" name="tool" value="grab" aria-label="Grabber">
+            <svg class="tool-icon tool-icon-line" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M15 25V14a4 4 0 0 1 8 0v10-13a4 4 0 0 1 8 0v13-9a4 4 0 0 1 8 0v16c0 8-6 13-14 13h-3c-6 0-10-3-13-8l-4-7a4 4 0 0 1 7-4l3 5z"/>
+            </svg>
+          </label>
+          <div class="icon-half-gap" aria-hidden="true"></div>
+          <label class="icon-button" data-tooltip="Grid underneath">
+            <input type="radio" name="grid-layer" value="under" checked aria-label="Grid underneath">
+            <svg class="layout-icon layout-layer-icon" viewBox="0 0 100 100" aria-hidden="true">
+              <path class="layer-grid" d="M12 50h76M50 12v76"/>
+              <path class="layer-taco" d="M50 28 72 50 50 72 28 50z"/>
+            </svg>
+          </label>
+          <label class="icon-button" data-tooltip="Grid on top">
+            <input type="radio" name="grid-layer" value="top" aria-label="Grid on top">
+            <svg class="layout-icon layout-layer-icon" viewBox="0 0 100 100" aria-hidden="true">
+              <path class="layer-taco" d="M50 28 72 50 50 72 28 50z"/>
+              <path class="layer-grid" d="M12 50h76M50 12v76"/>
+            </svg>
+          </label>
+        </div>
+        <div class="size-palette" aria-label="Tile size">
+          <label class="icon-button" data-tooltip='8" x 8"'>
+            <input type="radio" name="tile-size" value="8" aria-label='8" x 8"'>
+            <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="10" y="10" width="80" height="80"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='7" x 7"'>
+            <input type="radio" name="tile-size" value="7" aria-label='7" x 7"'>
+            <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="15" y="15" width="70" height="70"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='6" x 6"'>
+            <input type="radio" name="tile-size" value="6" aria-label='6" x 6"'>
+            <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="20" y="20" width="60" height="60"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='5" x 5"'>
+            <input type="radio" name="tile-size" value="5" aria-label='5" x 5"'>
+            <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="25" y="25" width="50" height="50"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='4" x 4"'>
+            <input type="radio" name="tile-size" value="4" aria-label='4" x 4"'>
+            <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="30" y="30" width="40" height="40"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='3" x 3"'>
+            <input type="radio" name="tile-size" value="3" aria-label='3" x 3"'>
+            <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="35" y="35" width="30" height="30"/></svg>
+          </label>
+        </div>
       </section>
 
       <section class="control-group">
-        <h2>Brush</h2>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="orthogonalCross" checked>
-          <span>Orthogonal cross</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="diagonalCross">
-          <span>Diagonal cross</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="star">
-          <span>Star</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="inset">
-          <span>Taco</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="colorOnly">
-          <span>Color only</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="grab">
-          <span>Grabber</span>
-        </label>
-        <label class="radio-row">
-          <input type="radio" name="brush" value="erase">
-          <span>Erase</span>
-        </label>
-      </section>
-
-      <section class="control-group">
-        <h2>Color</h2>
+        <h2>Tiles</h2>
+        <div class="tool-palette" aria-label="Tile tools">
+          <label class="tool-button" data-tooltip="Orthogonal cross">
+            <input type="radio" name="paint-shape" value="orthogonalCross" checked aria-label="Orthogonal cross">
+            <canvas class="tool-icon tool-icon-orthogonal material-tool-icon" width="100" height="100" data-tool-shape="orthogonalCross" aria-hidden="true"></canvas>
+          </label>
+          <label class="tool-button" data-tooltip="Diagonal cross">
+            <input type="radio" name="paint-shape" value="diagonalCross" aria-label="Diagonal cross">
+            <canvas class="tool-icon tool-icon-tile material-tool-icon" width="100" height="100" data-tool-shape="diagonalCross" aria-hidden="true"></canvas>
+          </label>
+          <label class="tool-button" data-tooltip="Star">
+            <input type="radio" name="paint-shape" value="star" aria-label="Star">
+            <canvas class="tool-icon tool-icon-star material-tool-icon" width="100" height="100" data-tool-shape="star" aria-hidden="true"></canvas>
+          </label>
+          <label class="tool-button" data-tooltip="Taco">
+            <input type="radio" name="paint-shape" value="inset" aria-label="Taco">
+            <canvas class="tool-icon tool-icon-taco material-tool-icon" width="100" height="100" data-tool-shape="inset" aria-hidden="true"></canvas>
+          </label>
+          <label class="tool-button" data-tooltip="Erase">
+            <input type="radio" name="tool" value="erase" aria-label="Erase">
+            <svg class="tool-icon tool-icon-eraser" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M8 31 28 11l12 12-15 15h-9z"/>
+              <rect class="eraser-paper" x="16" y="39" width="24" height="3"/>
+              <path d="M8 31 16 38h9l5-5"/>
+              <path d="m18 21 12 12"/>
+            </svg>
+          </label>
+          <button id="color-picker-tool" class="swatch color-picker-swatch" type="button" data-tooltip="Pick color" aria-label="Pick color" aria-pressed="false"></button>
+        </div>
         <div id="palette" class="palette" aria-label="Color palette"></div>
       </section>
 
       <section class="control-group">
-        <h2>Grout color</h2>
+        <h2>Grout</h2>
+        <div class="size-palette" aria-label="Grout size">
+          <label class="icon-button" data-tooltip='1/16" grout'>
+            <input type="radio" name="grout-joint" value="1" aria-label='1/16" grout'>
+            <svg class="grout-icon" viewBox="0 0 100 100" aria-hidden="true"><path class="grout-width-1" d="M50 16v68M16 50h68"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='2/16" grout'>
+            <input type="radio" name="grout-joint" value="2" aria-label='2/16" grout'>
+            <svg class="grout-icon" viewBox="0 0 100 100" aria-hidden="true"><path class="grout-width-2" d="M50 16v68M16 50h68"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='3/16" grout'>
+            <input type="radio" name="grout-joint" value="3" aria-label='3/16" grout'>
+            <svg class="grout-icon" viewBox="0 0 100 100" aria-hidden="true"><path class="grout-width-3" d="M50 16v68M16 50h68"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='4/16" grout'>
+            <input type="radio" name="grout-joint" value="4" aria-label='4/16" grout'>
+            <svg class="grout-icon" viewBox="0 0 100 100" aria-hidden="true"><path class="grout-width-4" d="M50 16v68M16 50h68"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='6/16" grout'>
+            <input type="radio" name="grout-joint" value="6" aria-label='6/16" grout'>
+            <svg class="grout-icon" viewBox="0 0 100 100" aria-hidden="true"><path class="grout-width-6" d="M50 16v68M16 50h68"/></svg>
+          </label>
+          <label class="icon-button" data-tooltip='8/16" grout'>
+            <input type="radio" name="grout-joint" value="8" aria-label='8/16" grout'>
+            <svg class="grout-icon" viewBox="0 0 100 100" aria-hidden="true"><path class="grout-width-8" d="M50 16v68M16 50h68"/></svg>
+          </label>
+        </div>
         <div id="grout-palette" class="palette grout-palette" aria-label="Grout color palette"></div>
       </section>
 
@@ -92,9 +147,14 @@
     </aside>
 
     <main class="workspace">
-      <canvas id="room" aria-label="Tile painting canvas"></canvas>
+      <div class="room-frame">
+        <canvas id="room" aria-label="Tile painting canvas"></canvas>
+        <dl class="room-specs" aria-label="Area size">
+          <dd id="room-spec">60&quot; x 96&quot;</dd>
+        </dl>
+      </div>
     </main>
 
-    <script defer src="dist/main.js?v=color-picker"></script>
+    <script defer src="dist/main.js?v=m4-layout-icons"></script>
   </body>
 </html>

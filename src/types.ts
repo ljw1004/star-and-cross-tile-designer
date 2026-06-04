@@ -1,5 +1,6 @@
 export type Mode = "straight" | "diagonal";
-export type Brush = "orthogonalCross" | "diagonalCross" | "star" | "inset" | "colorOnly" | "colorPicker" | "grab" | "erase";
+export type Tool = "paint" | "grab" | "erase" | "colorPicker";
+export type PaintShape = "orthogonalCross" | "diagonalCross" | "star" | "inset";
 export type CrossKind = "orthogonalCross" | "diagonalCross";
 export type TileKind = CrossKind | "star";
 export type Side = "n" | "e" | "s" | "w";
@@ -45,7 +46,8 @@ export type AppState = {
   zoom: number;
   groutColorId: string;
   groutJointSixteenths: number;
-  brush: Brush;
+  tool: Tool;
+  paintShape: PaintShape | undefined;
   manufacturerId: string;
   colorId: string;
   cells: Map<string, Tile>;
