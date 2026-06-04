@@ -2,7 +2,12 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Star and Cross Tiles">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Star and Cross Tile Designer</title>
     <meta
       name="description"
@@ -16,7 +21,7 @@
     <meta name="application-name" content="Star and Cross Tile Designer">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#f4f1eb">
-    <link rel="canonical" href="https://ljw1004.github.io/star-and-cross-tile-designer/">
+    <link rel="canonical" href="https://unto.me/tiles/">
 
     <meta property="og:title" content="Star and Cross Tile Designer">
     <meta
@@ -24,10 +29,10 @@
       content="Design star and cross bathroom tile layouts"
     >
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://ljw1004.github.io/star-and-cross-tile-designer/">
+    <meta property="og:url" content="https://unto.me/tiles/">
     <meta property="og:site_name" content="Star and Cross Tile Designer">
     <meta property="og:locale" content="en_US">
-    <meta property="og:image" content="https://ljw1004.github.io/star-and-cross-tile-designer/preview.jpg">
+    <meta property="og:image" content="https://unto.me/tiles/preview.jpg">
     <meta property="og:image:type" content="image/jpeg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -39,7 +44,7 @@
       name="twitter:description"
       content="Design star and cross bathroom tile layouts"
     >
-    <meta name="twitter:image" content="https://ljw1004.github.io/star-and-cross-tile-designer/preview.jpg">
+    <meta name="twitter:image" content="https://unto.me/tiles/preview.jpg">
     <meta name="twitter:image:alt" content="Preview of the Star and Cross Tile Designer layout canvas.">
 
     <script type="application/ld+json">
@@ -48,12 +53,12 @@
         "@type": "WebApplication",
         "name": "Star and Cross Tile Designer",
         "alternateName": "Star and Cross Tiles",
-        "url": "https://ljw1004.github.io/star-and-cross-tile-designer/",
+        "url": "https://unto.me/tiles/",
         "description": "Design star and cross bathroom tile layouts",
         "applicationCategory": "DesignApplication",
         "operatingSystem": "Any modern browser",
         "isAccessibleForFree": true,
-        "license": "https://ljw1004.github.io/star-and-cross-tile-designer/LICENSE",
+        "license": "https://unto.me/tiles/LICENSE",
         "keywords": [
           "star and cross tile designer",
           "mosaic tile layout",
@@ -76,11 +81,11 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <aside class="panel">
+    <aside id="control-panel" class="panel">
       <h1>Star and Cross Tiles</h1>
       <div id="layout-errors" class="layout-errors" role="alert" aria-live="polite"></div>
 
-      <section class="control-group">
+      <section class="control-group" data-mobile-panel="layout">
         <h2>Layout</h2>
         <div class="layout-palette" aria-label="Layout palette">
           <label class="icon-button" data-tooltip="Straight layout">
@@ -103,15 +108,15 @@
             </svg>
           </label>
           <div class="icon-half-gap" aria-hidden="true"></div>
-          <label class="icon-button" data-tooltip="Grid underneath">
-            <input type="radio" name="grid-layer" value="under" checked aria-label="Grid underneath">
+          <label class="icon-button" data-tooltip="No grid">
+            <input type="radio" name="grid-layer" value="under" checked aria-label="No grid">
             <svg class="layout-icon layout-layer-icon" viewBox="0 0 100 100" aria-hidden="true">
               <path class="layer-grid" d="M12 50h76M50 12v76"/>
               <path class="layer-taco" d="M50 28 72 50 50 72 28 50z"/>
             </svg>
           </label>
-          <label class="icon-button" data-tooltip="Grid on top">
-            <input type="radio" name="grid-layer" value="top" aria-label="Grid on top">
+          <label class="icon-button" data-tooltip="Grid">
+            <input type="radio" name="grid-layer" value="top" aria-label="Grid">
             <svg class="layout-icon layout-layer-icon" viewBox="0 0 100 100" aria-hidden="true">
               <path class="layer-taco" d="M50 28 72 50 50 72 28 50z"/>
               <path class="layer-grid" d="M12 50h76M50 12v76"/>
@@ -144,9 +149,17 @@
             <svg class="size-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="35" y="35" width="30" height="30"/></svg>
           </label>
         </div>
+        <div id="area-editor" class="area-editor">
+          <label class="area-label" for="area-input">Area:</label>
+          <input id="area-input" class="area-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false">
+          <div class="area-actions" aria-label="Area edit actions">
+            <button id="area-accept" class="area-action area-accept" type="button" aria-label="Accept area size">✓</button>
+            <button id="area-cancel" class="area-action area-cancel" type="button" aria-label="Cancel area size">×</button>
+          </div>
+        </div>
       </section>
 
-      <section class="control-group">
+      <section class="control-group" data-mobile-panel="tiles">
         <h2>Tiles</h2>
         <div class="tool-palette" aria-label="Tile tools">
           <label class="tool-button" data-tooltip="Orthogonal cross">
@@ -179,7 +192,7 @@
         <div id="palette" class="palette" aria-label="Color palette"></div>
       </section>
 
-      <section class="control-group">
+      <section class="control-group" data-mobile-panel="grout">
         <h2>Grout</h2>
         <div class="size-palette" aria-label="Grout size">
           <label class="icon-button" data-tooltip='1/16" grout'>
@@ -220,6 +233,21 @@
       </div>
     </main>
 
-    <script defer src="dist/main.js?v=m4-layout-icons"></script>
+    <nav class="mobile-bottom-bar" aria-label="Controls">
+      <button class="mobile-tab" type="button" data-mobile-panel-button="layout" aria-label="Layout controls" aria-pressed="false">
+        <svg id="mobile-layout-icon" class="mobile-tab-icon" viewBox="0 0 48 48" aria-hidden="true"></svg>
+        <span>Layout</span>
+      </button>
+      <button class="mobile-tab" type="button" data-mobile-panel-button="tiles" aria-label="Tile controls" aria-pressed="false">
+        <canvas id="mobile-tile-icon" class="mobile-tab-icon mobile-tab-canvas" width="100" height="100" aria-hidden="true"></canvas>
+        <span>Tiles</span>
+      </button>
+      <button class="mobile-tab" type="button" data-mobile-panel-button="grout" aria-label="Grout controls" aria-pressed="false">
+        <svg id="mobile-grout-icon" class="mobile-tab-icon" viewBox="0 0 48 48" aria-hidden="true"></svg>
+        <span>Grout</span>
+      </button>
+    </nav>
+
+    <script defer src="main.js?v=touch-portrait"></script>
   </body>
 </html>

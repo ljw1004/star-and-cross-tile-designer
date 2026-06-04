@@ -22,9 +22,21 @@ Goal: a single-page app, entirely client-side, for users to experiment with bath
 5. As well as painting, there'll be a "grab" tool. This will let you move the tiles within the room with granularity of 0.5". This is so users can experiment with different offsets.
 6. Everything (current choice of options, current layout of tiles, offset, ...) will be encoded compactly in the URL query params, which gets live-updated. There's no provision for "project management". If a user wants to bookmark, then they can copy+paste the URL with query parameters. They can have multiple tabs with different settings.
 
+## Deployment
+
+Deploy the static app to `unto.me` with `rsync` after building:
+
+```sh
+npm run build
+rsync -az --delete index.html styles.css main.js preview.jpg lu@unto.me:/mnt/disks/pod7disk/www/untome/tiles/
+```
+
+The deployed page should then be available at `https://unto.me/tiles/`.
+
+
 ## Architecture
 
-HTML+CSS+Canvas+Typescript, opened directly in the browser. No frameworks. `npm run build` uses `tsc --noEmit` for type checking and esbuild to bundle `src/main.ts` into the single browser file `dist/main.js`.
+HTML+CSS+Canvas+Typescript, opened directly in the browser. No frameworks. `npm run build` uses `tsc --noEmit` for type checking and esbuild to bundle `src/main.ts` into the single browser file `main.js`.
 
 Source file index:
 
@@ -81,4 +93,21 @@ Note that tiles can overlap placeholders. For instance the star overlaps all adj
 4. UX: change UX model to "paint-with-tile" vs "paint-color-only" vs "grab/erase/pick". Use icons for everything. Use icons for all the things you can select in the left. (straight vs diagonal, brushes). Adjust cursors as best we can: dropper, erase, paint
 5. Diagonal: Diagonal/straight should switch tool to grabber. Also rotate around current center, not 0x0. Also lots of icons should change. Also the ortho/diag cross icons shouldn't change icon, but should change meaning when you click. And the reflective highlights shouldn't rotate.
 6. Polish: compact URL. Metadata: keywords like "star and cross designer", "mosaic", "tile", "arabesque", "spanish square".
-7. Touch: make it touch-friendly for use on an ipad or iphone.
+7. Touch: make it touch-friendly for use on an ipad or iphone. (1) Viewport pan+zoom and touch gesture handling. (2) Tap-vs-pan threshold and touch paint-on-release. (3) Offset badge for touch Grabber drags. (4) Editable Area row. (5) For portrait, add responsive bottom bar and popups.
+
+## Touch
+
+- On portrait view, show a bar at the bottom with buttons (1) layout (2) tile, (3) grout. Like Outlook for iPhone it will show a text label underneath the button.
+   - Layout: if current tool is grabber, it will show that, else it will show view (orth/diag). When you pop it up, it shows the standard layout options (row1: view orth/diag, grabber, grid; row2: tile size). Each of these icons will need text under it to explain what it does. The popup will use selection outlines like we have at the moment.
+   - Tiles: if current tool is grabber then this will show the last active paint-shape or paint-color; paint-color will be represented by a color swatch square. But all other tools are tile tools (paint-shape, erase, dropper, paint-color) which will show in the bar. When popped up, it will show the tool row at the bottom (no need for labels) and all the colors above. I think we'll need to show full text name headings for each chunk of colors, not use the "Initialism" that we do in normal view.
+   - Grout: This will show the icon for the current grout size. When you click it, it will show the grout options. The grout widths will need text labels. We'll have grout widths at the bottom, for similarity with the tiles popup.
+   - We won't have an affordance for share. That will be done in the normal iPhone safari way, by sharing a webpage.
+   - I'm hoping that when a user navigates to this page, then Safari's browser bar will sort of fade away. Not sure if we can trigger that. (We would be able to turn this into an app, but I think that's over the top. Who wants to install an app on their homescreen just for tile design?)
+   - We'll have to make sure that all hitzones are touch friendly.
+- On touch, we'll switch to a zoomable+pannable surface.
+   - Press+drag will pan, like normal. Unless you're in Grabber mode in which case it will do the normal grab, and a banner will appear horizontally centered near the top of the screen 'moved -1" right, 3" up', showing how much has moved in the current grab. This will distinguish grab-dragging from view-panning. (even though both are visually indistinguishable if you're zoomed in far enough that you can't see room boundaries!)
+   - Two-finger zoom will zoom in and out, like normal. Zoom and pan will not update the URL.
+   - Tap (or press+drag+release with only a small drag under a threshold) will paint with the current tool if not grabber (paint-shape, erase, dropper, paint-color).
+   - The hitzones for painting tacos will have to be larger than the taco actually is. Still, users will always be able to zoom if they need more precision.
+   - The layout area (be it in left sidebar for landscape, or popup for portrait) will have a third row: `Area: [6'8" x 4'0"] ✓×`. The square brackets is an `<input type="text">`. That way when the user taps, a normal keyboard will pop up, and they can edit it. Area display uses feet and inches. When parsing, plain numbers such as `96 x 48` or `96 48` are inches; dimensions with a foot marker such as `6'4` or `6'4"` are feet and inches. If it's parsable then the blue tick button will be enabled. If a resize is accepted and the whole new room isn't currently in view, then we'll zoom out to see it all. In touch mode, we'll no longer display the size under the bottom right.
+   

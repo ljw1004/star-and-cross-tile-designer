@@ -1823,6 +1823,7 @@
   var tooltipControls = Array.from(document.querySelectorAll(".tool-button, .icon-button, #color-picker-tool"));
   var materialToolIcons = Array.from(document.querySelectorAll(".material-tool-icon"));
   var mobilePanelButtons = Array.from(document.querySelectorAll("[data-mobile-panel-button]"));
+  var mobileBottomBar = requiredElement(document.querySelector(".mobile-bottom-bar"), "mobile bottom bar");
   var mobileLayoutIcon = requiredElement(document.querySelector("#mobile-layout-icon"), "mobile layout icon");
   var mobileTileIcon = requiredElement(document.querySelector("#mobile-tile-icon"), "mobile tile icon");
   var mobileTileIconCtx = requiredElement(mobileTileIcon.getContext("2d"), "mobile tile icon context");
@@ -1849,6 +1850,8 @@
   var lastMobilePaintColorOnly = false;
   var previousNonGrabMode;
   var colorToastTimer;
+  var visualViewportBottomReserve = 0;
+  var lastWorkspaceTap;
   var lastPaintKey = "";
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
@@ -1858,6 +1861,7 @@
   var TOUCH_DRAG_THRESHOLD_PX = 10;
   void start();
   async function start() {
+    syncVisualViewportVars();
     state = await loadState(workspace);
     rememberNonGrabMode();
     rememberMobilePaintMode();
@@ -2001,7 +2005,80 @@
     workspace.addEventListener("pointermove", handleWorkspacePointerMove);
     workspace.addEventListener("pointerup", handleWorkspacePointerUp);
     workspace.addEventListener("pointercancel", handleWorkspacePointerCancel);
+    workspace.addEventListener("touchend", preventWorkspaceDoubleTapZoom, { passive: false });
     window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("resize", scheduleVisualViewportSync);
+    window.addEventListener("orientationchange", resetVisualViewportReserve);
+    window.addEventListener("focus", resetVisualViewportReserve);
+    document.addEventListener("visibilitychange", resetVisualViewportReserve);
+    window.addEventListener("focusin", scheduleVisualViewportSync);
+    window.addEventListener("focusout", scheduleVisualViewportSync);
+    window.addEventListener("pointerdown", scheduleVisualViewportSync, { passive: true });
+    window.addEventListener("pointerup", scheduleVisualViewportSync, { passive: true });
+    window.addEventListener("touchstart", scheduleVisualViewportSync, { passive: true });
+    window.addEventListener("touchend", scheduleVisualViewportSync, { passive: true });
+    controlPanel.addEventListener("touchstart", preventControlPinch, { passive: false });
+    controlPanel.addEventListener("touchmove", preventControlPinch, { passive: false });
+    mobileBottomBar.addEventListener("touchstart", preventControlPinch, { passive: false });
+    mobileBottomBar.addEventListener("touchmove", preventControlPinch, { passive: false });
+    window.visualViewport?.addEventListener("resize", scheduleVisualViewportSync);
+    window.visualViewport?.addEventListener("scroll", scheduleVisualViewportSync);
+  }
+  function syncVisualViewportVars() {
+    if (!document.hasFocus()) {
+      return;
+    }
+    const viewport = window.visualViewport;
+    const top = viewport?.offsetTop ?? 0;
+    const height = viewport?.height ?? window.innerHeight;
+    const layoutHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+    const measuredBottom = Math.max(0, layoutHeight - (top + height));
+    const isEditingArea = document.activeElement === areaInput;
+    const canReserveBottomChrome = measuredBottom > 0 && measuredBottom <= 120;
+    if (top > 20) {
+      visualViewportBottomReserve = measuredBottom;
+    } else if (canReserveBottomChrome && measuredBottom > visualViewportBottomReserve) {
+      visualViewportBottomReserve = measuredBottom;
+    } else if (measuredBottom === 0 && !isEditingArea) {
+      visualViewportBottomReserve = 0;
+    }
+    const usableMeasuredBottom = measuredBottom <= 120 || isEditingArea ? measuredBottom : 0;
+    const bottom = top > 20 ? usableMeasuredBottom : Math.max(usableMeasuredBottom, visualViewportBottomReserve);
+    document.documentElement.style.setProperty("--vv-top", `${top}px`);
+    document.documentElement.style.setProperty("--vv-bottom", `${bottom}px`);
+    document.documentElement.style.setProperty("--vv-height", `${height}px`);
+  }
+  function scheduleVisualViewportSync() {
+    syncVisualViewportVars();
+    window.requestAnimationFrame(syncVisualViewportVars);
+    window.setTimeout(syncVisualViewportVars, 80);
+    window.setTimeout(syncVisualViewportVars, 300);
+  }
+  function resetVisualViewportReserve() {
+    visualViewportBottomReserve = 0;
+    scheduleVisualViewportSync();
+  }
+  function preventControlPinch(event) {
+    if (event.touches.length >= 2) {
+      event.preventDefault();
+    }
+  }
+  function preventWorkspaceDoubleTapZoom(event) {
+    if (event.changedTouches.length !== 1 || touchPointers.size > 0) {
+      return;
+    }
+    const touch = event.changedTouches[0];
+    const now = window.performance.now();
+    const previous = lastWorkspaceTap;
+    lastWorkspaceTap = { time: now, x: touch.clientX, y: touch.clientY };
+    if (!previous) {
+      return;
+    }
+    const elapsed = now - previous.time;
+    const distance2 = Math.hypot(touch.clientX - previous.x, touch.clientY - previous.y);
+    if (elapsed < 350 && distance2 < 32) {
+      event.preventDefault();
+    }
   }
   function setupMobilePanelControls() {
     mobilePanelButtons.forEach((button) => {
@@ -2029,7 +2106,20 @@
     mobilePanelButtons.forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.mobilePanelButton === panel));
     });
+    scrollMobilePanelAfterOpen(panel);
     hideSwatchTooltip();
+  }
+  function scrollMobilePanelAfterOpen(panel) {
+    window.requestAnimationFrame(() => {
+      if (activeMobilePanel !== panel) {
+        return;
+      }
+      if (panel === "tiles") {
+        controlPanel.scrollTop = controlPanel.scrollHeight;
+      } else {
+        controlPanel.scrollTop = 0;
+      }
+    });
   }
   function dismissMobilePanelAfterAction() {
     if (activeMobilePanel) {
@@ -2140,22 +2230,65 @@
     areaAcceptButton.setAttribute("aria-disabled", String(!isValid));
   }
   function parseAreaInput(value) {
-    const matches = value.match(/\d+(?:\.\d+)?/g);
-    if (!matches || matches.length !== 2) {
+    const dimensions = parseAreaDimensions(value);
+    if (!dimensions) {
       return void 0;
     }
-    const width = Number(matches[0]);
-    const height = Number(matches[1]);
-    if (!Number.isInteger(width) || !Number.isInteger(height) || width < MIN_ROOM_WIDTH_INCHES || width > MAX_ROOM_WIDTH_INCHES || height < MIN_ROOM_HEIGHT_INCHES || height > MAX_ROOM_HEIGHT_INCHES) {
+    const [width, height] = dimensions;
+    if (width < MIN_ROOM_WIDTH_INCHES || width > MAX_ROOM_WIDTH_INCHES || height < MIN_ROOM_HEIGHT_INCHES || height > MAX_ROOM_HEIGHT_INCHES) {
       return void 0;
     }
     return { width, height };
+  }
+  function parseAreaDimensions(value) {
+    const normalized = value.trim().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[′]/g, "'").replace(/[″]/g, '"').replace(/[×]/g, "x");
+    const xParts = normalized.split(/\s*x\s*/i).filter((part) => part.trim() !== "");
+    if (xParts.length === 2) {
+      return parseDimensionPair(xParts[0], xParts[1]);
+    }
+    const footMatches = normalized.match(/\d+\s*(?:'|ft\b)\s*\d*\s*(?:"|in\b)?/gi);
+    if (footMatches?.length === 2) {
+      return parseDimensionPair(footMatches[0], footMatches[1]);
+    }
+    const inchMatches = normalized.match(/\d+/g);
+    if (inchMatches?.length === 2) {
+      return parseDimensionPair(inchMatches[0], inchMatches[1]);
+    }
+    return void 0;
+  }
+  function parseDimensionPair(first, second) {
+    const width = parseAreaDimension(first);
+    const height = parseAreaDimension(second);
+    return width !== void 0 && height !== void 0 ? [width, height] : void 0;
+  }
+  function parseAreaDimension(value) {
+    const trimmed = value.trim();
+    const feetMatch = trimmed.match(/^(\d+)\s*(?:'|ft\b)\s*(\d*)\s*(?:"|in\b)?$/i);
+    if (feetMatch) {
+      const feet = Number(feetMatch[1]);
+      const inches2 = feetMatch[2] === "" ? 0 : Number(feetMatch[2]);
+      if (!Number.isInteger(feet) || !Number.isInteger(inches2) || inches2 < 0 || inches2 >= 12) {
+        return void 0;
+      }
+      return feet * 12 + inches2;
+    }
+    const inchesMatch = trimmed.match(/^(\d+)\s*(?:"|in\b)?$/i);
+    if (!inchesMatch) {
+      return void 0;
+    }
+    const inches = Number(inchesMatch[1]);
+    return Number.isInteger(inches) ? inches : void 0;
   }
   function queueAreaValidation() {
     window.requestAnimationFrame(validateAreaInput);
   }
   function areaText(width, height) {
-    return `${width}" x ${height}"`;
+    return `${dimensionText(width)} x ${dimensionText(height)}`;
+  }
+  function dimensionText(inches) {
+    const feet = Math.floor(inches / 12);
+    const remainder = inches % 12;
+    return `${feet}'${remainder}"`;
   }
   function zoomOutToFitRoomIfNeeded() {
     const room = roomPx(state);
@@ -2469,7 +2602,7 @@ by ${manufacturer.name}`;
     const workspaceRect = workspace.getBoundingClientRect();
     colorToast.textContent = text;
     colorToast.style.left = `${workspaceRect.left + workspaceRect.width / 2}px`;
-    colorToast.style.top = `${Math.max(12, workspaceRect.top + 18)}px`;
+    colorToast.style.top = `${Math.max(12, visualViewportTop() + 18)}px`;
     colorToast.classList.remove("is-visible");
     void colorToast.offsetWidth;
     colorToast.classList.add("is-visible");
@@ -2703,6 +2836,7 @@ by ${manufacturer.name}`;
       restoreNonGrabModeAfterTouchGrab();
     }
     if (activeGesture?.type === "pinch") {
+      finalizePinchGesture(activeGesture);
       touchGesture = void 0;
     } else if (touchPointers.size === 0 || activeGesture?.pointerId === event.pointerId) {
       touchGesture = void 0;
@@ -2710,8 +2844,13 @@ by ${manufacturer.name}`;
   }
   function handleTouchPointerCancel(event) {
     event.preventDefault();
+    const activeGesture = touchGesture;
     touchPointers.delete(event.pointerId);
-    if (touchGesture?.type === "pinch" || touchGesture?.pointerId === event.pointerId || touchPointers.size === 0) {
+    if (activeGesture?.type === "pinch") {
+      finalizePinchGesture(activeGesture);
+      touchGesture = void 0;
+      hideGestureBadge();
+    } else if (activeGesture?.pointerId === event.pointerId || touchPointers.size === 0) {
       touchGesture = void 0;
       hideGestureBadge();
     }
@@ -2733,6 +2872,7 @@ by ${manufacturer.name}`;
       pointerIds: [first[0], second[0]],
       startDistance: Math.max(1, distanceBetween2(first[1], second[1])),
       startZoom: state.zoom,
+      currentZoom: state.zoom,
       baseCanvasLeft: rect.left - viewportPan.x,
       baseCanvasTop: rect.top - viewportPan.y,
       anchorRoomPoint: {
@@ -2752,14 +2892,18 @@ by ${manufacturer.name}`;
     }
     const center = midpoint(first, second);
     const nextZoom = normalizeZoom(touchGesture.startZoom * distanceBetween2(first, second) / touchGesture.startDistance);
-    if (nextZoom !== state.zoom) {
-      state.zoom = nextZoom;
-      setupCanvas();
-      render();
-    }
-    viewportPan.x = center.x - touchGesture.baseCanvasLeft - touchGesture.anchorRoomPoint.x * state.zoom;
-    viewportPan.y = center.y - touchGesture.baseCanvasTop - touchGesture.anchorRoomPoint.y * state.zoom;
+    const room = roomPx(state);
+    touchGesture.currentZoom = nextZoom;
+    canvas.style.width = `${room.width * nextZoom}px`;
+    canvas.style.height = `${room.height * nextZoom}px`;
+    viewportPan.x = center.x - touchGesture.baseCanvasLeft - touchGesture.anchorRoomPoint.x * nextZoom;
+    viewportPan.y = center.y - touchGesture.baseCanvasTop - touchGesture.anchorRoomPoint.y * nextZoom;
     updateViewportTransform();
+  }
+  function finalizePinchGesture(gesture) {
+    state.zoom = gesture.currentZoom;
+    setupCanvas();
+    render();
   }
   function panViewportFromTouch(currentPoint, gesture) {
     viewportPan.x = gesture.startPan.x + currentPoint.x - gesture.startClientPoint.x;
@@ -2895,6 +3039,7 @@ by ${manufacturer.name}`;
     const workspaceRect = workspace.getBoundingClientRect();
     gestureBadge.textContent = text;
     gestureBadge.style.left = `${workspaceRect.left + workspaceRect.width / 2}px`;
+    gestureBadge.style.top = `${visualViewportTop() + 14}px`;
     gestureBadge.classList.add("is-visible");
   }
   function hideGestureBadge() {
@@ -2912,6 +3057,9 @@ by ${manufacturer.name}`;
   }
   function formatInches(value) {
     return Number.isInteger(value) ? `${value}"` : `${value.toFixed(1).replace(/\\.0$/, "")}"`;
+  }
+  function visualViewportTop() {
+    return window.visualViewport?.offsetTop ?? 0;
   }
   function moveGridFromPointer(event, interaction) {
     state.offsetXInches = roundToHalfInch(interaction.startOffsetXInches + (event.clientX - interaction.startPoint.x) / (SCALE * state.zoom));
