@@ -1,4 +1,5 @@
 import { darken, paletteColor } from "./color";
+import { recordDebugMaterialCacheHit, recordDebugMaterialCacheMiss, recordDebugMaterialDraw } from "./debug";
 import type { PaletteColor } from "./types";
 
 export type MaterialBounds = {
@@ -8,24 +9,76 @@ export type MaterialBounds = {
   height: number;
 };
 
+/** Number of visual variants cached per colorId. */
+const VARIANT_COUNT = 4;
+
+/** Fixed pixel size of each cached material bitmap. */
+const CACHE_SIZE = 192;
+
+/** Cache of offscreen material bitmaps, keyed by `${colorId}:${variant}`. */
+const materialCache = new Map<string, HTMLCanvasElement>();
+
+export function clearMaterialCache(): void {
+  materialCache.clear();
+}
+
+/**
+ * Fills the current path on ctx with a cached material bitmap. The seed
+ * string is hashed to select one of VARIANT_COUNT cached bitmaps for the
+ * given colorId.
+ */
 export function fillMaterialPath(ctx: CanvasRenderingContext2D, colorId: string, seed: string, bounds: MaterialBounds): void {
-  const color = paletteColor(colorId);
-  const random = seededRandom(seed);
-  const variation = color.shadeVariation * 5;
-  const base = adjustLightness(color.value, (random() - 0.5) * variation);
-  const screenBounds = transformedBounds(ctx, bounds);
+  const variant = seedToVariant(seed);
+  const bitmap = getMaterialBitmap(colorId, variant);
 
-  ctx.fillStyle = base;
-  ctx.fill();
-
+  const start = performance.now();
   ctx.save();
   ctx.clip();
-  drawClouding(ctx, color, random, bounds);
-  drawGrain(ctx, color, random, bounds);
-  drawStripes(ctx, color, random, bounds);
-  drawChips(ctx, color, random, bounds);
-  drawSheen(ctx, color, screenBounds);
+  ctx.drawImage(bitmap, 0, 0, CACHE_SIZE, CACHE_SIZE, bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
+  recordDebugMaterialDraw(performance.now() - start);
+}
+
+/** Hash seed string to a variant index in [0, VARIANT_COUNT). */
+function seedToVariant(seed: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % VARIANT_COUNT);
+}
+
+function getMaterialBitmap(colorId: string, variant: number): HTMLCanvasElement {
+  const key = `${colorId}:${variant}`;
+  const cached = materialCache.get(key);
+  if (cached) {
+    recordDebugMaterialCacheHit();
+    return cached;
+  }
+
+  const start = performance.now();
+  const color = paletteColor(colorId);
+  const offscreen = document.createElement("canvas");
+  offscreen.width = CACHE_SIZE;
+  offscreen.height = CACHE_SIZE;
+  const offCtx = offscreen.getContext("2d")!;
+  const bounds: MaterialBounds = { x: 0, y: 0, width: CACHE_SIZE, height: CACHE_SIZE };
+  const random = seededRandom(`${colorId}:${variant}`);
+
+  const variation = color.shadeVariation * 5;
+  offCtx.fillStyle = adjustLightness(color.value, (random() - 0.5) * variation);
+  offCtx.fillRect(0, 0, CACHE_SIZE, CACHE_SIZE);
+
+  drawClouding(offCtx, color, random, bounds);
+  drawGrain(offCtx, color, random, bounds);
+  drawStripes(offCtx, color, random, bounds);
+  drawChips(offCtx, color, random, bounds);
+  drawSheen(offCtx, color, bounds);
+
+  materialCache.set(key, offscreen);
+  recordDebugMaterialCacheMiss(performance.now() - start);
+  return offscreen;
 }
 
 function drawClouding(
@@ -137,30 +190,6 @@ function drawSheen(ctx: CanvasRenderingContext2D, color: PaletteColor, bounds: M
   ctx.fillStyle = gradient;
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
-}
-
-function transformedBounds(ctx: CanvasRenderingContext2D, bounds: MaterialBounds): MaterialBounds {
-  const transform = ctx.getTransform();
-  const points = [
-    transformPoint(transform, bounds.x, bounds.y),
-    transformPoint(transform, bounds.x + bounds.width, bounds.y),
-    transformPoint(transform, bounds.x + bounds.width, bounds.y + bounds.height),
-    transformPoint(transform, bounds.x, bounds.y + bounds.height),
-  ];
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function transformPoint(transform: DOMMatrix, x: number, y: number): { x: number; y: number } {
-  return {
-    x: transform.a * x + transform.c * y + transform.e,
-    y: transform.b * x + transform.d * y + transform.f,
-  };
 }
 
 function seededRandom(seed: string): () => number {

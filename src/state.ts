@@ -9,6 +9,7 @@ import {
   MIN_ROOM_WIDTH_INCHES,
   TILE_SIZE_OPTIONS,
 } from "./constants";
+import { recordDebugUrlSync, recordDebugUrlWrite } from "./debug";
 import { clamp, initialZoomForRoom, normalizeZoom, roundToHalfInch } from "./geometry";
 import { canonicalEdgeKey, cellKey, cornerKey, parseCellKey, parseCornerKey, parseEdgeKey } from "./keys";
 import type { AppState, Corner, PaintShape, Side, TileKind, Tool } from "./types";
@@ -82,7 +83,9 @@ export function cloneDefaultState(): AppState {
 }
 
 export function updateUrl(state: AppState): void {
+  const start = performance.now();
   pendingSnapshot = JSON.stringify(compactState(state));
+  recordDebugUrlSync(performance.now() - start, pendingSnapshot.length);
   if (debounceTimer !== undefined) {
     window.clearTimeout(debounceTimer);
   }
@@ -219,6 +222,7 @@ async function processUrlWriteQueue(): Promise<void> {
 
   isWritingUrl = true;
   const snapshot = pendingSnapshot;
+  const start = performance.now();
   try {
     const encoded = await encodeStateParam(snapshot);
     if (pendingSnapshot === snapshot) {
@@ -229,6 +233,7 @@ async function processUrlWriteQueue(): Promise<void> {
   } catch (error) {
     console.warn("Unable to compress tile state URL.", error);
   } finally {
+    recordDebugUrlWrite(performance.now() - start);
     isWritingUrl = false;
     if (pendingSnapshot !== lastWrittenSnapshot) {
       void processUrlWriteQueue();

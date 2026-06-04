@@ -8,6 +8,7 @@ import {
   SCALE,
   ZOOM_FACTOR,
 } from "./constants";
+import { beginDebugFrame, finishDebugFrame, renderDebugOverlay } from "./debug";
 import {
   canvasPoint,
   cellFromPoint,
@@ -1531,7 +1532,13 @@ function resizeRoomFromPointer(event: PointerEvent, interaction: Extract<DragInt
 function render(): void {
   renderReadyFrame += 1;
   const frame = renderReadyFrame;
+  beginDebugFrame({
+    canvasPixels: `${canvas.width}x${canvas.height}`,
+    canvasCss: `${Math.round(canvas.getBoundingClientRect().width)}x${Math.round(canvas.getBoundingClientRect().height)}`,
+    zoom: state.zoom,
+  });
   lastConflictSignature = renderConflictReport(state, layoutErrors, lastConflictSignature);
   draw(state, ctx, canvas);
+  renderDebugOverlay(finishDebugFrame());
   markRenderReady(canvas, frame, () => renderReadyFrame);
 }

@@ -171,6 +171,141 @@
     }
   }
 
+  // src/debug.ts
+  var activeStats;
+  var frameStart = 0;
+  var overlay;
+  var lastUrlSyncMs = 0;
+  var lastUrlWriteMs = 0;
+  var lastUrlChars = 0;
+  var SHOW_DEBUG_OVERLAY = false;
+  function beginDebugFrame(meta) {
+    frameStart = performance.now();
+    activeStats = {
+      totalMs: 0,
+      clearMs: 0,
+      gridUnderMs: 0,
+      groutMs: 0,
+      tilesMs: 0,
+      insetsMs: 0,
+      gridTopMs: 0,
+      outlineMs: 0,
+      conflictsMs: 0,
+      materialMs: 0,
+      materialCalls: 0,
+      materialCacheHits: 0,
+      materialCacheMisses: 0,
+      materialCacheCreateMs: 0,
+      visibleCells: 0,
+      visibleCrosses: 0,
+      visibleStars: 0,
+      visibleEdgeInsets: 0,
+      visibleCornerInsets: 0,
+      gridLines: 0,
+      urlSyncMs: lastUrlSyncMs,
+      urlWriteMs: lastUrlWriteMs,
+      urlChars: lastUrlChars,
+      ...meta
+    };
+  }
+  function finishDebugFrame() {
+    if (!activeStats) {
+      return void 0;
+    }
+    activeStats.totalMs = performance.now() - frameStart;
+    const stats = activeStats;
+    activeStats = void 0;
+    return stats;
+  }
+  function timeDebugPhase(phase, fn) {
+    if (!activeStats) {
+      return fn();
+    }
+    const start2 = performance.now();
+    try {
+      return fn();
+    } finally {
+      activeStats[phase] += performance.now() - start2;
+    }
+  }
+  function recordDebugMaterialDraw(ms) {
+    if (!activeStats) {
+      return;
+    }
+    activeStats.materialCalls += 1;
+    activeStats.materialMs += ms;
+  }
+  function recordDebugMaterialCacheHit() {
+    if (activeStats) {
+      activeStats.materialCacheHits += 1;
+    }
+  }
+  function recordDebugMaterialCacheMiss(createMs) {
+    if (!activeStats) {
+      return;
+    }
+    activeStats.materialCacheMisses += 1;
+    activeStats.materialCacheCreateMs += createMs;
+  }
+  function recordDebugCell(kind) {
+    if (!activeStats) {
+      return;
+    }
+    activeStats.visibleCells += 1;
+    if (kind === "star") {
+      activeStats.visibleStars += 1;
+    } else {
+      activeStats.visibleCrosses += 1;
+    }
+  }
+  function recordDebugInset(kind) {
+    if (!activeStats) {
+      return;
+    }
+    if (kind === "edge") {
+      activeStats.visibleEdgeInsets += 1;
+    } else {
+      activeStats.visibleCornerInsets += 1;
+    }
+  }
+  function recordDebugGridLines(count) {
+    if (activeStats) {
+      activeStats.gridLines += count;
+    }
+  }
+  function recordDebugUrlSync(ms, chars) {
+    lastUrlSyncMs = ms;
+    lastUrlChars = chars;
+  }
+  function recordDebugUrlWrite(ms) {
+    lastUrlWriteMs = ms;
+  }
+  function renderDebugOverlay(stats) {
+    if (!SHOW_DEBUG_OVERLAY || !stats) {
+      return;
+    }
+    if (!overlay) {
+      overlay = document.createElement("pre");
+      overlay.className = "debug-overlay";
+      document.body.append(overlay);
+    }
+    overlay.textContent = [
+      `render ${formatMs(stats.totalMs)}  zoom ${stats.zoom.toFixed(2)}`,
+      `canvas ${stats.canvasCss} css / ${stats.canvasPixels} px`,
+      `clear ${formatMs(stats.clearMs)}  grid ${formatMs(stats.gridUnderMs + stats.gridTopMs)} (${stats.gridLines})`,
+      `grout ${formatMs(stats.groutMs)}  tiles ${formatMs(stats.tilesMs)}  tacos ${formatMs(stats.insetsMs)}`,
+      `outline ${formatMs(stats.outlineMs)}  conflicts ${formatMs(stats.conflictsMs)}`,
+      `material ${formatMs(stats.materialMs)} / ${stats.materialCalls} calls`,
+      `cache hit ${stats.materialCacheHits}  miss ${stats.materialCacheMisses} (${formatMs(stats.materialCacheCreateMs)})`,
+      `url sync ${formatMs(stats.urlSyncMs)}  write ${formatMs(stats.urlWriteMs)}  chars ${stats.urlChars}`,
+      `visible ${stats.visibleCells} cells (${stats.visibleCrosses} cross, ${stats.visibleStars} star)`,
+      `tacos ${stats.visibleEdgeInsets} edge, ${stats.visibleCornerInsets} corner`
+    ].join("\n");
+  }
+  function formatMs(value) {
+    return `${value.toFixed(value >= 10 ? 1 : 2)}ms`;
+  }
+
   // src/keys.ts
   function cellKey(col, row) {
     return `${col}:${row}`;
@@ -936,22 +1071,53 @@
   }
 
   // src/material.ts
+  var VARIANT_COUNT = 4;
+  var CACHE_SIZE = 192;
+  var materialCache = /* @__PURE__ */ new Map();
   function fillMaterialPath(ctx2, colorId, seed, bounds) {
-    const color = paletteColor(colorId);
-    const random = seededRandom(seed);
-    const variation = color.shadeVariation * 5;
-    const base = adjustLightness(color.value, (random() - 0.5) * variation);
-    const screenBounds = transformedBounds(ctx2, bounds);
-    ctx2.fillStyle = base;
-    ctx2.fill();
+    const variant = seedToVariant(seed);
+    const bitmap = getMaterialBitmap(colorId, variant);
+    const start2 = performance.now();
     ctx2.save();
     ctx2.clip();
-    drawClouding(ctx2, color, random, bounds);
-    drawGrain(ctx2, color, random, bounds);
-    drawStripes(ctx2, color, random, bounds);
-    drawChips(ctx2, color, random, bounds);
-    drawSheen(ctx2, color, screenBounds);
+    ctx2.drawImage(bitmap, 0, 0, CACHE_SIZE, CACHE_SIZE, bounds.x, bounds.y, bounds.width, bounds.height);
     ctx2.restore();
+    recordDebugMaterialDraw(performance.now() - start2);
+  }
+  function seedToVariant(seed) {
+    let hash = 2166136261;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash ^= seed.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) % VARIANT_COUNT;
+  }
+  function getMaterialBitmap(colorId, variant) {
+    const key = `${colorId}:${variant}`;
+    const cached = materialCache.get(key);
+    if (cached) {
+      recordDebugMaterialCacheHit();
+      return cached;
+    }
+    const start2 = performance.now();
+    const color = paletteColor(colorId);
+    const offscreen = document.createElement("canvas");
+    offscreen.width = CACHE_SIZE;
+    offscreen.height = CACHE_SIZE;
+    const offCtx = offscreen.getContext("2d");
+    const bounds = { x: 0, y: 0, width: CACHE_SIZE, height: CACHE_SIZE };
+    const random = seededRandom(`${colorId}:${variant}`);
+    const variation = color.shadeVariation * 5;
+    offCtx.fillStyle = adjustLightness(color.value, (random() - 0.5) * variation);
+    offCtx.fillRect(0, 0, CACHE_SIZE, CACHE_SIZE);
+    drawClouding(offCtx, color, random, bounds);
+    drawGrain(offCtx, color, random, bounds);
+    drawStripes(offCtx, color, random, bounds);
+    drawChips(offCtx, color, random, bounds);
+    drawSheen(offCtx, color, bounds);
+    materialCache.set(key, offscreen);
+    recordDebugMaterialCacheMiss(performance.now() - start2);
+    return offscreen;
   }
   function drawClouding(ctx2, color, random, bounds) {
     if (color.clouding <= 0.01) {
@@ -1034,28 +1200,6 @@
     ctx2.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
     ctx2.restore();
   }
-  function transformedBounds(ctx2, bounds) {
-    const transform = ctx2.getTransform();
-    const points = [
-      transformPoint(transform, bounds.x, bounds.y),
-      transformPoint(transform, bounds.x + bounds.width, bounds.y),
-      transformPoint(transform, bounds.x + bounds.width, bounds.y + bounds.height),
-      transformPoint(transform, bounds.x, bounds.y + bounds.height)
-    ];
-    const xs = points.map((point) => point.x);
-    const ys = points.map((point) => point.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-  }
-  function transformPoint(transform, x, y) {
-    return {
-      x: transform.a * x + transform.c * y + transform.e,
-      y: transform.b * x + transform.d * y + transform.f
-    };
-  }
   function seededRandom(seed) {
     let value = 2166136261;
     for (let i = 0; i < seed.length; i += 1) {
@@ -1098,19 +1242,21 @@
   function draw(state2, ctx2, canvas2) {
     canvas2.dataset.renderReady = "false";
     const room = roomPx(state2);
-    ctx2.clearRect(0, 0, room.width, room.height);
-    ctx2.fillStyle = "#050505";
-    ctx2.fillRect(0, 0, room.width, room.height);
+    timeDebugPhase("clearMs", () => {
+      ctx2.clearRect(0, 0, room.width, room.height);
+      ctx2.fillStyle = "#050505";
+      ctx2.fillRect(0, 0, room.width, room.height);
+    });
     if (!state2.showGrid) {
-      drawPlaceholderGrid(state2, ctx2);
+      timeDebugPhase("gridUnderMs", () => drawPlaceholderGrid(state2, ctx2));
     }
-    drawGroutUnderlays(state2, ctx2);
-    drawPlacedTiles(state2, ctx2);
-    drawInsets(state2, ctx2);
+    timeDebugPhase("groutMs", () => drawGroutUnderlays(state2, ctx2));
+    timeDebugPhase("tilesMs", () => drawPlacedTiles(state2, ctx2));
+    timeDebugPhase("insetsMs", () => drawInsets(state2, ctx2));
     if (state2.showGrid) {
-      drawPlaceholderGrid(state2, ctx2);
+      timeDebugPhase("gridTopMs", () => drawPlaceholderGrid(state2, ctx2));
     }
-    drawRoomOutline(state2, ctx2);
+    timeDebugPhase("outlineMs", () => drawRoomOutline(state2, ctx2));
   }
   function markRenderReady(canvas2, frame, currentFrame) {
     requestAnimationFrame(() => {
@@ -1122,7 +1268,7 @@
     });
   }
   function renderConflictReport(state2, layoutErrors2, lastConflictSignature2) {
-    const conflicts = analyzeLayoutConflicts(state2);
+    const conflicts = timeDebugPhase("conflictsMs", () => analyzeLayoutConflicts(state2));
     const signature = conflicts.map((conflict) => `${conflict.code}:${conflict.message}`).join("|");
     if (conflicts.length === 0) {
       layoutErrors2.classList.remove("is-visible");
@@ -1186,11 +1332,13 @@
         if (pass !== "cross") {
           continue;
         }
+        recordDebugCell(tile.kind);
         drawCross(state2, ctx2, col, row, tile.kind, tile.colorId);
       } else {
         if (pass !== "star") {
           continue;
         }
+        recordDebugCell(tile.kind);
         drawStar(state2, ctx2, col, row, tile.colorId);
       }
     }
@@ -1411,10 +1559,12 @@
   function drawInsets(state2, ctx2) {
     for (const [key, inset] of state2.edgeInsets) {
       const edge = parseEdgeKey(key);
+      recordDebugInset("edge");
       drawEdgeInset(state2, ctx2, edge.col, edge.row, edge.side, inset.colorId);
     }
     for (const [key, inset] of state2.cornerInsets) {
       const corner = parseCornerKey(key);
+      recordDebugInset("corner");
       drawCornerInset(state2, ctx2, corner.col, corner.row, corner.corner, inset.colorId);
     }
   }
@@ -1449,6 +1599,7 @@
     const endX = Math.ceil(window2.maxX / tile - 0.5) + 1;
     const startY = Math.floor(window2.minY / tile - 0.5) - 1;
     const endY = Math.ceil(window2.maxY / tile - 0.5) + 1;
+    recordDebugGridLines(endX - startX + 1 + endY - startY + 1);
     for (let i = startX; i <= endX; i += 1) {
       const x = (i + 0.5) * tile;
       const a = gridLocalToScreen(state2, { x, y: window2.minY - tile });
@@ -1532,7 +1683,9 @@
     };
   }
   function updateUrl(state2) {
+    const start2 = performance.now();
     pendingSnapshot = JSON.stringify(compactState(state2));
+    recordDebugUrlSync(performance.now() - start2, pendingSnapshot.length);
     if (debounceTimer !== void 0) {
       window.clearTimeout(debounceTimer);
     }
@@ -1653,6 +1806,7 @@
     }
     isWritingUrl = true;
     const snapshot = pendingSnapshot;
+    const start2 = performance.now();
     try {
       const encoded = await encodeStateParam(snapshot);
       if (pendingSnapshot === snapshot) {
@@ -1663,6 +1817,7 @@
     } catch (error) {
       console.warn("Unable to compress tile state URL.", error);
     } finally {
+      recordDebugUrlWrite(performance.now() - start2);
       isWritingUrl = false;
       if (pendingSnapshot !== lastWrittenSnapshot) {
         void processUrlWriteQueue();
@@ -3090,8 +3245,14 @@ by ${manufacturer.name}`;
   function render() {
     renderReadyFrame += 1;
     const frame = renderReadyFrame;
+    beginDebugFrame({
+      canvasPixels: `${canvas.width}x${canvas.height}`,
+      canvasCss: `${Math.round(canvas.getBoundingClientRect().width)}x${Math.round(canvas.getBoundingClientRect().height)}`,
+      zoom: state.zoom
+    });
     lastConflictSignature = renderConflictReport(state, layoutErrors, lastConflictSignature);
     draw(state, ctx, canvas);
+    renderDebugOverlay(finishDebugFrame());
     markRenderReady(canvas, frame, () => renderReadyFrame);
   }
 })();

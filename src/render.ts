@@ -1,5 +1,6 @@
 import { groutColorValue } from "./color";
 import { analyzeLayoutConflicts } from "./conflicts";
+import { recordDebugCell, recordDebugGridLines, recordDebugInset, timeDebugPhase } from "./debug";
 import {
   cellLocalToScreen,
   cornerTacoSidePx,
@@ -20,20 +21,22 @@ import type { AppState, Corner, CrossKind, Side } from "./types";
 export function draw(state: AppState, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
   canvas.dataset.renderReady = "false";
   const room = roomPx(state);
-  ctx.clearRect(0, 0, room.width, room.height);
-  ctx.fillStyle = "#050505";
-  ctx.fillRect(0, 0, room.width, room.height);
+  timeDebugPhase("clearMs", () => {
+    ctx.clearRect(0, 0, room.width, room.height);
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, room.width, room.height);
+  });
 
   if (!state.showGrid) {
-    drawPlaceholderGrid(state, ctx);
+    timeDebugPhase("gridUnderMs", () => drawPlaceholderGrid(state, ctx));
   }
-  drawGroutUnderlays(state, ctx);
-  drawPlacedTiles(state, ctx);
-  drawInsets(state, ctx);
+  timeDebugPhase("groutMs", () => drawGroutUnderlays(state, ctx));
+  timeDebugPhase("tilesMs", () => drawPlacedTiles(state, ctx));
+  timeDebugPhase("insetsMs", () => drawInsets(state, ctx));
   if (state.showGrid) {
-    drawPlaceholderGrid(state, ctx);
+    timeDebugPhase("gridTopMs", () => drawPlaceholderGrid(state, ctx));
   }
-  drawRoomOutline(state, ctx);
+  timeDebugPhase("outlineMs", () => drawRoomOutline(state, ctx));
 }
 
 export function markRenderReady(canvas: HTMLCanvasElement, frame: number, currentFrame: () => number): void {
@@ -51,7 +54,7 @@ export function renderConflictReport(
   layoutErrors: HTMLDivElement,
   lastConflictSignature: string,
 ): string {
-  const conflicts = analyzeLayoutConflicts(state);
+  const conflicts = timeDebugPhase("conflictsMs", () => analyzeLayoutConflicts(state));
   const signature = conflicts.map((conflict) => `${conflict.code}:${conflict.message}`).join("|");
 
   if (conflicts.length === 0) {
@@ -127,11 +130,13 @@ function drawTilesByKind(state: AppState, ctx: CanvasRenderingContext2D, pass: "
       if (pass !== "cross") {
         continue;
       }
+      recordDebugCell(tile.kind);
       drawCross(state, ctx, col, row, tile.kind, tile.colorId);
     } else {
       if (pass !== "star") {
         continue;
       }
+      recordDebugCell(tile.kind);
       drawStar(state, ctx, col, row, tile.colorId);
     }
   }
@@ -419,11 +424,13 @@ function polygonBounds(points: PolygonPoint[]): { x: number; y: number; width: n
 function drawInsets(state: AppState, ctx: CanvasRenderingContext2D): void {
   for (const [key, inset] of state.edgeInsets) {
     const edge = parseEdgeKey(key);
+    recordDebugInset("edge");
     drawEdgeInset(state, ctx, edge.col, edge.row, edge.side, inset.colorId);
   }
 
   for (const [key, inset] of state.cornerInsets) {
     const corner = parseCornerKey(key);
+    recordDebugInset("corner");
     drawCornerInset(state, ctx, corner.col, corner.row, corner.corner, inset.colorId);
   }
 }
@@ -466,6 +473,7 @@ function drawPlaceholderGrid(state: AppState, ctx: CanvasRenderingContext2D): vo
   const endX = Math.ceil(window.maxX / tile - 0.5) + 1;
   const startY = Math.floor(window.minY / tile - 0.5) - 1;
   const endY = Math.ceil(window.maxY / tile - 0.5) + 1;
+  recordDebugGridLines(endX - startX + 1 + endY - startY + 1);
 
   for (let i = startX; i <= endX; i += 1) {
     const x = (i + 0.5) * tile;
