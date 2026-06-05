@@ -115,6 +115,7 @@ try {
 
     await page.goto(sample.url);
     await page.waitForSelector('#room[data-render-ready="true"]');
+    await waitForPaintedCanvas(page);
     const pngBase64 = await canvasPngBase64(page);
     await writeFile(output, Buffer.from(pngBase64, "base64"));
     await page.close();
@@ -124,3 +125,44 @@ try {
 }
 
 console.log(`Rendered ${samples.length} readme sample${samples.length === 1 ? "" : "s"}.`);
+
+async function waitForPaintedCanvas(page) {
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("#room");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      return false;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return false;
+    }
+
+    const { width, height } = canvas;
+    if (width === 0 || height === 0) {
+      return false;
+    }
+
+    const sampleSize = 24;
+    let painted = 0;
+    for (let y = 0; y < sampleSize; y += 1) {
+      for (let x = 0; x < sampleSize; x += 1) {
+        const px = Math.floor((x + 0.5) * (width / sampleSize));
+        const py = Math.floor((y + 0.5) * (height / sampleSize));
+        const [r, g, b] = ctx.getImageData(px, py, 1, 1).data;
+        if (r !== 0 || g !== 0 || b !== 0) {
+          painted += 1;
+        }
+      }
+    }
+
+    return painted > sampleSize;
+  });
+
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      }),
+  );
+}
