@@ -9,6 +9,7 @@ export type ResizeHandle = "right" | "bottom" | "corner";
 
 export type PaletteColor = {
   id: string;
+  iid: number;
   name: string;
   value: string;
   texture: TileTexture;

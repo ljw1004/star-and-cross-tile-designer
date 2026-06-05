@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && esbuild src/main.ts --bundle --format=iife --target=es2022 --outfile=main.js",
+    "compression-prototype": "node scripts/compression-prototype.mts",
     "render-tests": "node scripts/render-tests.mjs",
     "watch": "tsc --noEmit --watch"
   },

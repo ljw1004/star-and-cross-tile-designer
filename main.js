@@ -2,7 +2,7 @@
 (() => {
   // src/constants.ts
   var DEFAULT_ROOM_INCHES = { width: 60, height: 96 };
-  var DEFAULT_TILE_INCHES = 8;
+  var DEFAULT_TILE_INCHES = 5;
   var TILE_SIZE_OPTIONS = [3, 4, 5, 6, 7, 8];
   var MIN_ROOM_WIDTH_INCHES = 24;
   var MIN_ROOM_HEIGHT_INCHES = 24;
@@ -15,7 +15,8 @@
   var SCALE = 8;
   var SIDES = ["n", "e", "s", "w"];
   var CORNERS = ["nw", "ne", "se", "sw"];
-  var DEFAULT_GROUT_COLOR_ID = "warm-white";
+  var DEFAULT_GROUT_COLOR_ID = "warm-gray";
+  var DEFAULT_GROUT_JOINT_SIXTEENTHS = 3;
   var GROUT_JOINT_OPTIONS = [1, 2, 3, 4, 6, 8];
   var MANUFACTURERS = [
     {
@@ -23,19 +24,19 @@
       name: "Equipe Kasbah",
       defaultGroutJointSixteenths: 2,
       colors: [
-        tileColor("bone", "Bone", "#e5d8c2", "matte_porcelain", 1),
-        tileColor("smoke", "Smoke", "#85817a", "matte_porcelain", 1),
-        tileColor("mud", "Mud", "#79685a", "matte_porcelain", 2),
-        tileColor("fawn", "Fawn", "#b9936c", "matte_porcelain", 2),
-        tileColor("terracotta", "Terracotta", "#b05a3c", "matte_porcelain", 2),
-        tileColor("canvas", "Canvas Dot Matt", "#d8c7ae", "matte_porcelain", 1),
-        tileColor("orchard", "Orchard Pink Dot Matt", "#d9a6a0", "matte_porcelain", 1),
-        tileColor("verd", "Verd Dot Matt", "#536f56", "matte_porcelain", 2),
-        tileColor("grass", "Blue Grass Dot Matt", "#536f84", "matte_porcelain", 2),
-        tileColor("white", "White Dot Matt", "#ece8dd", "matte_porcelain", 1),
-        tileColor("amber", "Amber Grey Dot Matt", "#9b9787", "matte_porcelain", 2),
-        tileColor("black", "Black Dot Matt", "#171717", "matte_porcelain", 1),
-        tileColor("night", "Blue Night Dot Matt", "#26394d", "matte_porcelain", 2)
+        tileColor("bone", 1, "Bone", "#e5d8c2", "matte_porcelain", 1),
+        tileColor("smoke", 2, "Smoke", "#85817a", "matte_porcelain", 1),
+        tileColor("mud", 3, "Mud", "#79685a", "matte_porcelain", 2),
+        tileColor("fawn", 4, "Fawn", "#b9936c", "matte_porcelain", 2),
+        tileColor("terracotta", 5, "Terracotta", "#b05a3c", "matte_porcelain", 2),
+        tileColor("canvas", 6, "Canvas Dot Matt", "#d8c7ae", "matte_porcelain", 1),
+        tileColor("orchard", 7, "Orchard Pink Dot Matt", "#d9a6a0", "matte_porcelain", 1),
+        tileColor("verd", 8, "Verd Dot Matt", "#536f56", "matte_porcelain", 2),
+        tileColor("grass", 9, "Blue Grass Dot Matt", "#536f84", "matte_porcelain", 2),
+        tileColor("white", 10, "White Dot Matt", "#ece8dd", "matte_porcelain", 1),
+        tileColor("amber", 11, "Amber Grey Dot Matt", "#9b9787", "matte_porcelain", 2),
+        tileColor("black", 12, "Black Dot Matt", "#171717", "matte_porcelain", 1),
+        tileColor("night", 13, "Blue Night Dot Matt", "#26394d", "matte_porcelain", 2)
       ]
     },
     {
@@ -43,22 +44,22 @@
       name: "Fireclay Original Ceramic",
       defaultGroutJointSixteenths: 3,
       colors: [
-        tileColor("adriatic-sea", "Adriatic Sea Gloss", "#1f6d78", "handmade_ceramic_gloss", 3),
-        tileColor("aegean-sea", "Aegean Sea Gloss", "#3a8fa0", "handmade_ceramic_gloss", 3),
-        tileColor("azul", "Azul Gloss", "#245f94", "handmade_ceramic_gloss", 3),
-        tileColor("evergreen", "Evergreen Gloss", "#245745", "handmade_ceramic_gloss", 3),
-        tileColor("navy-blue", "Navy Blue Gloss", "#1d3550", "handmade_ceramic_gloss", 3),
-        tileColor("peabody", "Peabody Gloss", "#b05842", "handmade_ceramic_gloss", 3),
-        tileColor("carbon", "Carbon Matte", "#353535", "handmade_ceramic_matte", 2),
-        tileColor("cardamom", "Cardamom Matte", "#758164", "handmade_ceramic_matte", 3),
-        tileColor("dolomite", "Dolomite Matte", "#dfd8c9", "handmade_ceramic_matte", 2),
-        tileColor("dust-storm", "Dust Storm Matte", "#b9a289", "handmade_ceramic_matte", 3),
-        tileColor("ivory", "Ivory Matte", "#eee3cf", "handmade_ceramic_matte", 1),
-        tileColor("mustard-seed", "Mustard Seed Matte", "#b78a31", "handmade_ceramic_matte", 3),
-        tileColor("raven", "Raven Matte", "#181a1b", "handmade_ceramic_matte", 2),
-        tileColor("rosemary", "Rosemary Matte", "#64735f", "handmade_ceramic_matte", 3),
-        tileColor("sand-dune", "Sand Dune Matte", "#d7c3a6", "handmade_ceramic_matte", 2),
-        tileColor("slate-blue", "Slate Blue Matte", "#627b8c", "handmade_ceramic_matte", 3)
+        tileColor("adriatic-sea", 14, "Adriatic Sea Gloss", "#1f6d78", "handmade_ceramic_gloss", 3),
+        tileColor("aegean-sea", 15, "Aegean Sea Gloss", "#3a8fa0", "handmade_ceramic_gloss", 3),
+        tileColor("azul", 16, "Azul Gloss", "#245f94", "handmade_ceramic_gloss", 3),
+        tileColor("evergreen", 17, "Evergreen Gloss", "#245745", "handmade_ceramic_gloss", 3),
+        tileColor("navy-blue", 18, "Navy Blue Gloss", "#1d3550", "handmade_ceramic_gloss", 3),
+        tileColor("peabody", 19, "Peabody Gloss", "#b05842", "handmade_ceramic_gloss", 3),
+        tileColor("carbon", 20, "Carbon Matte", "#353535", "handmade_ceramic_matte", 2),
+        tileColor("cardamom", 21, "Cardamom Matte", "#758164", "handmade_ceramic_matte", 3),
+        tileColor("dolomite", 22, "Dolomite Matte", "#dfd8c9", "handmade_ceramic_matte", 2),
+        tileColor("dust-storm", 23, "Dust Storm Matte", "#b9a289", "handmade_ceramic_matte", 3),
+        tileColor("ivory", 24, "Ivory Matte", "#eee3cf", "handmade_ceramic_matte", 1),
+        tileColor("mustard-seed", 25, "Mustard Seed Matte", "#b78a31", "handmade_ceramic_matte", 3),
+        tileColor("raven", 26, "Raven Matte", "#181a1b", "handmade_ceramic_matte", 2),
+        tileColor("rosemary", 27, "Rosemary Matte", "#64735f", "handmade_ceramic_matte", 3),
+        tileColor("sand-dune", 28, "Sand Dune Matte", "#d7c3a6", "handmade_ceramic_matte", 2),
+        tileColor("slate-blue", 29, "Slate Blue Matte", "#627b8c", "handmade_ceramic_matte", 3)
       ]
     },
     {
@@ -66,9 +67,9 @@
       name: "cl\xE9 Pavimenti Cement",
       defaultGroutJointSixteenths: 1,
       colors: [
-        tileColor("cle-charcoal", "Charcoal", "#343434", "encaustic_cement", 3),
-        tileColor("cle-flowerpot", "Flowerpot", "#a94f36", "encaustic_cement", 3),
-        tileColor("cle-white", "White", "#ebe5d8", "encaustic_cement", 2)
+        tileColor("cle-charcoal", 30, "Charcoal", "#343434", "encaustic_cement", 3),
+        tileColor("cle-flowerpot", 31, "Flowerpot", "#a94f36", "encaustic_cement", 3),
+        tileColor("cle-white", 32, "White", "#ebe5d8", "encaustic_cement", 2)
       ]
     },
     {
@@ -76,14 +77,14 @@
       name: "Zia Stars & Cross",
       defaultGroutJointSixteenths: 1,
       colors: [
-        tileColor("zia-white", "White Cement", "#e9e2d4", "encaustic_cement", 2),
-        tileColor("zia-ash", "Ash Cement", "#4f4d48", "encaustic_cement", 3),
-        tileColor("zia-midnight", "Midnight Cement", "#0f5360", "encaustic_cement", 3),
-        tileColor("zia-zeppelin", "Zeppelin Cement", "#6f8067", "encaustic_cement", 3),
-        tileColor("zia-bone", "Bone Cement", "#d8c8ad", "encaustic_cement", 2),
-        tileColor("zia-blanco", "Blanco Cotto", "#c7b398", "rustic_cotto", 3),
-        tileColor("zia-madera", "Madera Cotto", "#5a372a", "rustic_cotto", 4),
-        tileColor("zia-red-clay", "Red Clay Cotto", "#9e422f", "rustic_cotto", 4)
+        tileColor("zia-white", 33, "White Cement", "#e9e2d4", "encaustic_cement", 2),
+        tileColor("zia-ash", 34, "Ash Cement", "#4f4d48", "encaustic_cement", 3),
+        tileColor("zia-midnight", 35, "Midnight Cement", "#0f5360", "encaustic_cement", 3),
+        tileColor("zia-zeppelin", 36, "Zeppelin Cement", "#6f8067", "encaustic_cement", 3),
+        tileColor("zia-bone", 37, "Bone Cement", "#d8c8ad", "encaustic_cement", 2),
+        tileColor("zia-blanco", 38, "Blanco Cotto", "#c7b398", "rustic_cotto", 3),
+        tileColor("zia-madera", 39, "Madera Cotto", "#5a372a", "rustic_cotto", 4),
+        tileColor("zia-red-clay", 40, "Red Clay Cotto", "#9e422f", "rustic_cotto", 4)
       ]
     },
     {
@@ -91,13 +92,13 @@
       name: "Apollo Star and Cross",
       defaultGroutJointSixteenths: 2,
       colors: [
-        tileColor("apollo-black-gloss", "Black Gloss", "#111111", "gloss_ceramic", 1),
-        tileColor("apollo-cornflower", "Cornflower Blue Gloss", "#5f83b8", "gloss_ceramic", 2),
-        tileColor("apollo-white", "White Gloss", "#f0eee8", "gloss_ceramic", 1),
-        tileColor("apollo-black-matte", "Black Matte", "#111111", "matte_ceramic", 1),
-        tileColor("apollo-pistachio", "Pistachio Green Matte", "#91a879", "matte_ceramic", 2),
-        tileColor("apollo-light-gray", "Light Gray Matte", "#bebebb", "matte_ceramic", 1),
-        tileColor("apollo-beige", "Beige Porcelain", "#cdbb9d", "dimensional_porcelain", 2)
+        tileColor("apollo-black-gloss", 41, "Black Gloss", "#111111", "gloss_ceramic", 1),
+        tileColor("apollo-cornflower", 42, "Cornflower Blue Gloss", "#5f83b8", "gloss_ceramic", 2),
+        tileColor("apollo-white", 43, "White Gloss", "#f0eee8", "gloss_ceramic", 1),
+        tileColor("apollo-black-matte", 44, "Black Matte", "#111111", "matte_ceramic", 1),
+        tileColor("apollo-pistachio", 45, "Pistachio Green Matte", "#91a879", "matte_ceramic", 2),
+        tileColor("apollo-light-gray", 46, "Light Gray Matte", "#bebebb", "matte_ceramic", 1),
+        tileColor("apollo-beige", 47, "Beige Porcelain", "#cdbb9d", "dimensional_porcelain", 2)
       ]
     },
     {
@@ -105,11 +106,11 @@
       name: "Rustico Saltillo",
       defaultGroutJointSixteenths: 4,
       colors: [
-        tileColor("rustico-spanish-red", "Spanish Mission Red", "#a64b2f", "saltillo_terracotta", 4),
-        tileColor("rustico-manganese", "Manganese", "#6b4235", "saltillo_terracotta", 4),
-        tileColor("rustico-antique", "Antique", "#bd7546", "saltillo_terracotta", 4),
-        tileColor("rustico-traditional", "Traditional", "#c1683a", "saltillo_terracotta", 4),
-        tileColor("rustico-unsealed", "Unsealed Saltillo", "#d48b55", "saltillo_terracotta", 4)
+        tileColor("rustico-spanish-red", 48, "Spanish Mission Red", "#a64b2f", "saltillo_terracotta", 4),
+        tileColor("rustico-manganese", 49, "Manganese", "#6b4235", "saltillo_terracotta", 4),
+        tileColor("rustico-antique", 50, "Antique", "#bd7546", "saltillo_terracotta", 4),
+        tileColor("rustico-traditional", 51, "Traditional", "#c1683a", "saltillo_terracotta", 4),
+        tileColor("rustico-unsealed", 52, "Unsealed Saltillo", "#d48b55", "saltillo_terracotta", 4)
       ]
     }
   ];
@@ -124,6 +125,9 @@
     { id: "charcoal", name: "Charcoal", value: "#404040" },
     { id: "black", name: "Black", value: "#151515" }
   ];
+  var TILE_COLOR_TABLES = buildTileColorTables(MANUFACTURERS);
+  var TILE_COLORS_BY_IID = TILE_COLOR_TABLES.byIid;
+  var TILE_COLOR_IIDS_BY_ID = TILE_COLOR_TABLES.iidsById;
   var DEFAULT_STATE = {
     mode: "straight",
     showGrid: false,
@@ -134,18 +138,40 @@
     offsetYInches: 0,
     zoom: 1,
     groutColorId: DEFAULT_GROUT_COLOR_ID,
-    groutJointSixteenths: MANUFACTURERS[0].defaultGroutJointSixteenths,
+    groutJointSixteenths: DEFAULT_GROUT_JOINT_SIXTEENTHS,
     tool: "paint",
-    paintShape: "orthogonalCross",
+    paintShape: "diagonalCross",
     manufacturerId: MANUFACTURERS[0].id,
     colorId: MANUFACTURERS[0].colors[0].id,
     cells: /* @__PURE__ */ new Map(),
     edgeInsets: /* @__PURE__ */ new Map(),
     cornerInsets: /* @__PURE__ */ new Map()
   };
-  function tileColor(id, name, value, texture, shadeVariation) {
+  function tileColor(id, iid, name, value, texture, shadeVariation) {
     const params = textureDefaults(texture);
-    return { id, name, value, texture, shadeVariation, ...params };
+    return { id, iid, name, value, texture, shadeVariation, ...params };
+  }
+  function buildTileColorTables(manufacturers) {
+    const byIid = /* @__PURE__ */ new Map();
+    const iidsById = /* @__PURE__ */ new Map();
+    for (const manufacturer of manufacturers) {
+      for (const color of manufacturer.colors) {
+        if (!Number.isInteger(color.iid) || color.iid <= 0 || color.iid > 255) {
+          throw new Error(`Tile color ${color.id} has invalid integer id ${color.iid}.`);
+        }
+        const existingColor = byIid.get(color.iid);
+        if (existingColor) {
+          throw new Error(`Tile color integer id ${color.iid} is used by both ${existingColor.id} and ${color.id}.`);
+        }
+        const existingIid = iidsById.get(color.id);
+        if (existingIid !== void 0) {
+          throw new Error(`Tile color string id ${color.id} is used by both integer ids ${existingIid} and ${color.iid}.`);
+        }
+        byIid.set(color.iid, color);
+        iidsById.set(color.id, color.iid);
+      }
+    }
+    return { byIid, iidsById };
   }
   function textureDefaults(texture) {
     switch (texture) {
@@ -1639,27 +1665,104 @@
     });
   }
 
-  // src/state.ts
-  var pendingSnapshot = "";
-  var lastWrittenSnapshot = "";
-  var isWritingUrl = false;
-  var debounceTimer;
-  async function loadState(workspace2) {
-    const params = new URLSearchParams(window.location.search);
-    const next = cloneDefaultState();
-    const encoded = params.get("s");
-    if (encoded) {
-      try {
-        const compact = JSON.parse(await decodeStateParam(encoded));
-        console.log("Expanded URL tile state", compact);
-        applyCompactState(compact, next);
-      } catch (error) {
-        console.warn("Unable to decode tile state URL; using defaults.", error);
-      }
+  // src/serialization.ts
+  var MAGIC = 83;
+  var FORMAT_VERSION = 1;
+  var BLANK_KEY = "0|0|0|0|0|0";
+  function snapshotState(state2) {
+    return JSON.stringify({
+      mode: state2.mode,
+      showGrid: state2.showGrid,
+      roomWidthInches: state2.roomWidthInches,
+      roomHeightInches: state2.roomHeightInches,
+      tileInches: state2.tileInches,
+      offsetXInches: state2.offsetXInches,
+      offsetYInches: state2.offsetYInches,
+      groutColorId: state2.groutColorId,
+      groutJointSixteenths: state2.groutJointSixteenths,
+      cells: sortedEntries(state2.cells),
+      edgeInsets: sortedEntries(state2.edgeInsets),
+      cornerInsets: sortedEntries(state2.cornerInsets)
+    });
+  }
+  async function serialize(state2) {
+    return bytesToBase64Url(await gzip(serializeRaw(state2)));
+  }
+  async function deserialize(encoded) {
+    return deserializeRaw(await gunzip(base64UrlToBytes(encoded)));
+  }
+  function serializeRaw(state2) {
+    const grid = buildGrid(state2);
+    const dictionary = buildDictionary(grid.rows);
+    const writer = new ByteWriter();
+    writer.writeByte(MAGIC);
+    writer.writeByte(FORMAT_VERSION);
+    writer.writeByte(state2.mode === "diagonal" ? 1 : 0);
+    writer.writeByte(state2.showGrid ? 1 : 0);
+    writer.writeUnsigned16(state2.roomWidthInches);
+    writer.writeUnsigned16(state2.roomHeightInches);
+    writer.writeByte(state2.tileInches);
+    writer.writeSigned16(halfInchUnits(state2.offsetXInches));
+    writer.writeSigned16(halfInchUnits(state2.offsetYInches));
+    writer.writeByte(groutColorIid(state2.groutColorId));
+    writer.writeByte(state2.groutJointSixteenths);
+    writer.writeSigned16(grid.originCol);
+    writer.writeSigned16(grid.originRow);
+    writer.writeUnsigned16(grid.width);
+    writer.writeUnsigned16(grid.height);
+    writeDictionary(writer, dictionary.entries);
+    writer.writeUnsigned16(dictionary.stream.length);
+    for (const token of dictionary.stream) {
+      writer.writeIndex(token);
     }
-    next.zoom = initialZoomForRoom(workspace2, next.roomWidthInches, next.roomHeightInches);
-    lastWrittenSnapshot = JSON.stringify(compactState(next));
-    return next;
+    return writer.bytes();
+  }
+  function deserializeRaw(bytes) {
+    const reader = new ByteReader(bytes);
+    const magic = reader.readByte();
+    const version = reader.readByte();
+    if (magic !== MAGIC || version !== FORMAT_VERSION) {
+      throw new Error(`Unsupported serialized state format ${magic}:${version}.`);
+    }
+    const state2 = cloneDefaultState();
+    state2.mode = reader.readByte() === 1 ? "diagonal" : "straight";
+    state2.showGrid = reader.readByte() === 1;
+    state2.roomWidthInches = reader.readUnsigned16();
+    state2.roomHeightInches = reader.readUnsigned16();
+    state2.tileInches = reader.readByte();
+    state2.offsetXInches = reader.readSigned16() / 2;
+    state2.offsetYInches = reader.readSigned16() / 2;
+    state2.groutColorId = groutColorIdFromIid(reader.readByte());
+    state2.groutJointSixteenths = reader.readByte();
+    if (!TILE_SIZE_OPTIONS.includes(state2.tileInches)) {
+      throw new Error(`Unsupported tile size ${state2.tileInches}.`);
+    }
+    if (!GROUT_JOINT_OPTIONS.includes(state2.groutJointSixteenths)) {
+      throw new Error(`Unsupported grout joint ${state2.groutJointSixteenths}.`);
+    }
+    const originCol = reader.readSigned16();
+    const originRow = reader.readSigned16();
+    const width = reader.readUnsigned16();
+    const height = reader.readUnsigned16();
+    const entries = readDictionary(reader);
+    const tokenCount = reader.readUnsigned16();
+    state2.cells.clear();
+    state2.edgeInsets.clear();
+    state2.cornerInsets.clear();
+    for (let tokenIndex = 0; tokenIndex < tokenCount; tokenIndex += 1) {
+      const token = reader.readIndex();
+      const stateKey = entries[token];
+      if (stateKey === void 0) {
+        throw new Error(`Serialized stream referenced missing dictionary entry ${token}.`);
+      }
+      const rowOffset = Math.floor(tokenIndex / width);
+      const colOffset = tokenIndex % width;
+      if (rowOffset >= height) {
+        continue;
+      }
+      applyCellState(state2, originCol + colOffset, originRow + rowOffset, decodeStateKey(stateKey));
+    }
+    return state2;
   }
   function cloneDefaultState() {
     return {
@@ -1682,172 +1785,268 @@
       cornerInsets: /* @__PURE__ */ new Map()
     };
   }
-  function updateUrl(state2) {
-    const start2 = performance.now();
-    pendingSnapshot = JSON.stringify(compactState(state2));
-    recordDebugUrlSync(performance.now() - start2, pendingSnapshot.length);
-    if (debounceTimer !== void 0) {
-      window.clearTimeout(debounceTimer);
+  function buildGrid(state2) {
+    const touched = [];
+    for (const key of state2.cells.keys()) {
+      const cell = parseCellKey(key);
+      touched.push([cell.col, cell.row]);
     }
-    debounceTimer = window.setTimeout(() => {
-      debounceTimer = void 0;
-      void processUrlWriteQueue();
-    }, 10);
-  }
-  function applyCompactState(compact, next) {
-    if (compact.v !== 2) {
-      throw new Error(`Unsupported compressed state version ${String(compact.v)}.`);
-    }
-    next.mode = compact.m === "d" ? "diagonal" : "straight";
-    next.showGrid = compact.q === 1;
-    next.roomWidthInches = validRoomWidth(String(compact.rw)) ?? next.roomWidthInches;
-    next.roomHeightInches = validRoomHeight(String(compact.rh)) ?? next.roomHeightInches;
-    next.tileInches = validTileInches(String(compact.ts)) ?? next.tileInches;
-    next.offsetXInches = validHalfInch(String(compact.ox)) ?? next.offsetXInches;
-    next.offsetYInches = validHalfInch(String(compact.oy)) ?? next.offsetYInches;
-    next.groutColorId = validGroutColor(compact.gc) ?? next.groutColorId;
-    next.groutJointSixteenths = validGroutJoint(String(compact.gj)) ?? next.groutJointSixteenths;
-    next.tool = toolFromCode(compact.tl) ?? next.tool;
-    next.paintShape = next.tool === "paint" ? paintShapeFromCode(compact.ps) : void 0;
-    next.manufacturerId = validManufacturer(compact.mf) ?? next.manufacturerId;
-    next.colorId = validColor(next.manufacturerId, compact.c) ?? next.colorId;
-    const colors = compact.cs ?? [];
-    next.cells.clear();
-    next.edgeInsets.clear();
-    next.cornerInsets.clear();
-    for (const record of compact.a ?? []) {
-      const [col, row, kindCode, colorIndex] = record;
-      const kind = tileKindFromCode(kindCode);
-      const colorId = colors[colorIndex];
-      if (Number.isInteger(col) && Number.isInteger(row) && kind && colorId) {
-        next.cells.set(cellKey(col, row), { kind, colorId });
-      }
-    }
-    for (const record of compact.e ?? []) {
-      const [col, row, side, colorIndex] = record;
-      const colorId = colors[colorIndex];
-      if (Number.isInteger(col) && Number.isInteger(row) && validSide(side) && colorId) {
-        next.edgeInsets.set(canonicalEdgeKey(col, row, side), { colorId });
-      }
-    }
-    for (const record of compact.k ?? []) {
-      const [col, row, corner, colorIndex] = record;
-      const colorId = colors[colorIndex];
-      if (Number.isInteger(col) && Number.isInteger(row) && validCorner(corner) && colorId) {
-        next.cornerInsets.set(cornerKey(col, row, corner), { colorId });
-      }
-    }
-  }
-  function compactState(state2) {
-    const colorIndexes = /* @__PURE__ */ new Map();
-    const colors = [];
-    const colorIndex = (colorId) => {
-      const existing = colorIndexes.get(colorId);
-      if (existing !== void 0) {
-        return existing;
-      }
-      const next = colors.length;
-      colors.push(colorId);
-      colorIndexes.set(colorId, next);
-      return next;
-    };
-    const compact = {
-      v: 2,
-      m: state2.mode === "diagonal" ? "d" : "s",
-      rw: state2.roomWidthInches,
-      rh: state2.roomHeightInches,
-      ts: state2.tileInches,
-      ox: state2.offsetXInches,
-      oy: state2.offsetYInches,
-      gc: state2.groutColorId,
-      gj: state2.groutJointSixteenths,
-      tl: toolCode(state2.tool),
-      mf: state2.manufacturerId,
-      c: state2.colorId
-    };
-    if (state2.showGrid) {
-      compact.q = 1;
-    }
-    if (state2.tool === "paint" && state2.paintShape) {
-      compact.ps = paintShapeCode(state2.paintShape);
-    }
-    const cells = [];
-    for (const [key, tile] of state2.cells) {
-      const { col, row } = parseCellKey(key);
-      cells.push([col, row, tileKindCode(tile.kind), colorIndex(tile.colorId)]);
-    }
-    if (cells.length > 0) {
-      compact.a = cells;
-    }
-    const edgeInsets = [];
-    for (const [key, inset] of state2.edgeInsets) {
+    for (const key of state2.edgeInsets.keys()) {
       const edge = parseEdgeKey(key);
-      edgeInsets.push([edge.col, edge.row, edge.side, colorIndex(inset.colorId)]);
+      touched.push([edge.col, edge.row]);
+      if (edge.side === "e") {
+        touched.push([edge.col + 1, edge.row]);
+      } else {
+        touched.push([edge.col, edge.row + 1]);
+      }
     }
-    if (edgeInsets.length > 0) {
-      compact.e = edgeInsets;
-    }
-    const cornerInsets = [];
-    for (const [key, inset] of state2.cornerInsets) {
+    for (const key of state2.cornerInsets.keys()) {
       const corner = parseCornerKey(key);
-      cornerInsets.push([corner.col, corner.row, corner.corner, colorIndex(inset.colorId)]);
+      touched.push([corner.col, corner.row]);
     }
-    if (cornerInsets.length > 0) {
-      compact.k = cornerInsets;
+    if (touched.length === 0) {
+      return { originCol: 0, originRow: 0, width: 0, height: 0, rows: [] };
     }
-    if (colors.length > 0) {
-      compact.cs = colors;
+    const cols = touched.map(([col]) => col);
+    const rows = touched.map(([, row]) => row);
+    const originCol = Math.min(...cols);
+    const originRow = Math.min(...rows);
+    const maxCol = Math.max(...cols);
+    const maxRow = Math.max(...rows);
+    const width = maxCol - originCol + 1;
+    const height = maxRow - originRow + 1;
+    const outputRows = [];
+    for (let row = originRow; row <= maxRow; row += 1) {
+      const outputRow = [];
+      for (let col = originCol; col <= maxCol; col += 1) {
+        outputRow.push(encodeStateKey(cellStateAt(state2, col, row)));
+      }
+      outputRows.push(outputRow);
     }
-    return compact;
+    return { originCol, originRow, width, height, rows: outputRows };
   }
-  async function processUrlWriteQueue() {
-    if (isWritingUrl || pendingSnapshot === "" || pendingSnapshot === lastWrittenSnapshot) {
+  function cellStateAt(state2, col, row) {
+    const tile = state2.cells.get(cellKey(col, row));
+    if (!tile) {
+      const edgeTacos = [
+        edgeInsetIid(state2, col, row, "n"),
+        edgeInsetIid(state2, col, row, "e"),
+        edgeInsetIid(state2, col, row, "s"),
+        edgeInsetIid(state2, col, row, "w")
+      ];
+      const cornerTacos = [
+        cornerInsetIid(state2, col, row, "nw"),
+        cornerInsetIid(state2, col, row, "ne"),
+        cornerInsetIid(state2, col, row, "se"),
+        cornerInsetIid(state2, col, row, "sw")
+      ];
+      const hasEdgeTaco = edgeTacos.some((taco) => taco !== 0);
+      const hasCornerTaco = cornerTacos.some((taco) => taco !== 0);
+      if (hasEdgeTaco && hasCornerTaco) {
+        console.error(`Cannot fully serialize both edge and corner tacos in empty placeholder ${col},${row}; edge tacos win.`);
+      }
+      if (hasEdgeTaco) {
+        return { shape: 2, main: 0, tacos: edgeTacos };
+      }
+      if (hasCornerTaco) {
+        return { shape: 1, main: 0, tacos: cornerTacos };
+      }
+      return decodeStateKey(BLANK_KEY);
+    }
+    const cell = { shape: shapeCode(tile.kind), main: materialIid(tile.colorId), tacos: [0, 0, 0, 0] };
+    if (tile.kind === "diagonalCross") {
+      cell.tacos = [
+        edgeInsetIid(state2, col, row, "n"),
+        edgeInsetIid(state2, col, row, "e"),
+        edgeInsetIid(state2, col, row, "s"),
+        edgeInsetIid(state2, col, row, "w")
+      ];
+    } else if (tile.kind === "orthogonalCross") {
+      cell.tacos = [
+        cornerInsetIid(state2, col, row, "nw"),
+        cornerInsetIid(state2, col, row, "ne"),
+        cornerInsetIid(state2, col, row, "se"),
+        cornerInsetIid(state2, col, row, "sw")
+      ];
+    }
+    return cell;
+  }
+  function buildDictionary(rows) {
+    const counts = /* @__PURE__ */ new Map();
+    for (const row of rows) {
+      for (const state2 of row) {
+        if (state2 !== BLANK_KEY) {
+          counts.set(state2, (counts.get(state2) ?? 0) + 1);
+        }
+      }
+    }
+    const entries = [
+      BLANK_KEY,
+      ...[...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([state2]) => state2)
+    ];
+    const indexes = new Map(entries.map((entry, index) => [entry, index]));
+    const stream = rows.flatMap(
+      (row) => row.map((state2) => {
+        const index = indexes.get(state2);
+        if (index === void 0) {
+          throw new Error(`Missing dictionary entry for ${state2}.`);
+        }
+        return index;
+      })
+    );
+    return { entries, stream };
+  }
+  function writeDictionary(writer, entries) {
+    const states = entries.slice(1).map(decodeStateKey);
+    const tacoStates = states.filter((state2) => state2.shape !== 3);
+    writer.writeIndex(states.length);
+    for (const state2 of states) {
+      writer.writeByte(state2.shape);
+    }
+    for (const state2 of states) {
+      writer.writeIndex(state2.main);
+    }
+    for (let tacoIndex = 0; tacoIndex < 4; tacoIndex += 1) {
+      for (const state2 of tacoStates) {
+        writer.writeIndex(state2.tacos[tacoIndex]);
+      }
+    }
+  }
+  function readDictionary(reader) {
+    const entryCount = reader.readIndex();
+    const states = Array.from({ length: entryCount }, () => ({ shape: 0, main: 0, tacos: [0, 0, 0, 0] }));
+    for (const state2 of states) {
+      state2.shape = reader.readByte();
+      if (state2.shape < 1 || state2.shape > 3) {
+        throw new Error(`Invalid serialized dictionary shape ${state2.shape}.`);
+      }
+    }
+    for (const state2 of states) {
+      state2.main = reader.readIndex();
+    }
+    const tacoStates = states.filter((state2) => state2.shape !== 3);
+    for (let tacoIndex = 0; tacoIndex < 4; tacoIndex += 1) {
+      for (const state2 of tacoStates) {
+        state2.tacos[tacoIndex] = reader.readIndex();
+      }
+    }
+    return [BLANK_KEY, ...states.map(encodeStateKey)];
+  }
+  function applyCellState(appState, col, row, state2) {
+    if (state2.shape === 0) {
       return;
     }
-    isWritingUrl = true;
-    const snapshot = pendingSnapshot;
-    const start2 = performance.now();
-    try {
-      const encoded = await encodeStateParam(snapshot);
-      if (pendingSnapshot === snapshot) {
-        const nextUrl = `${window.location.pathname}?s=${encoded}`;
-        window.history.replaceState(null, "", nextUrl);
-        lastWrittenSnapshot = snapshot;
+    const kind = tileKindForShape(state2.shape);
+    if (state2.main !== 0) {
+      appState.cells.set(cellKey(col, row), { kind, colorId: colorIdForIid(state2.main) });
+    }
+    if (kind === "diagonalCross") {
+      const sides = ["n", "e", "s", "w"];
+      for (let index = 0; index < sides.length; index += 1) {
+        const taco = state2.tacos[index];
+        if (taco !== 0) {
+          setEdgeInset(appState, canonicalEdgeKey(col, row, sides[index]), colorIdForIid(taco));
+        }
       }
-    } catch (error) {
-      console.warn("Unable to compress tile state URL.", error);
-    } finally {
-      recordDebugUrlWrite(performance.now() - start2);
-      isWritingUrl = false;
-      if (pendingSnapshot !== lastWrittenSnapshot) {
-        void processUrlWriteQueue();
+    } else if (kind === "orthogonalCross") {
+      const corners = ["nw", "ne", "se", "sw"];
+      for (let index = 0; index < corners.length; index += 1) {
+        const taco = state2.tacos[index];
+        if (taco !== 0) {
+          appState.cornerInsets.set(cornerKey(col, row, corners[index]), { colorId: colorIdForIid(taco) });
+        }
       }
     }
   }
-  async function encodeStateParam(snapshot) {
-    const input = new TextEncoder().encode(snapshot);
-    if ("CompressionStream" in window) {
-      const stream = new Blob([bytesToArrayBuffer(input)]).stream().pipeThrough(new CompressionStream("gzip"));
-      const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
-      return `z${bytesToBase64Url(compressed)}`;
+  function setEdgeInset(state2, key, colorId) {
+    const existing = state2.edgeInsets.get(key);
+    if (existing && existing.colorId !== colorId) {
+      console.error(`Conflicting serialized edge taco ${key}: ${existing.colorId} vs ${colorId}. Last value wins.`);
     }
-    return `j${bytesToBase64Url(input)}`;
+    state2.edgeInsets.set(key, { colorId });
   }
-  async function decodeStateParam(encoded) {
-    const prefix = encoded[0];
-    if (prefix === "z") {
-      if (!("DecompressionStream" in window)) {
-        throw new Error("This browser does not support compressed URLs.");
-      }
-      const bytes = base64UrlToBytes(encoded.slice(1));
-      const stream = new Blob([bytesToArrayBuffer(bytes)]).stream().pipeThrough(new DecompressionStream("gzip"));
-      return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+  function edgeInsetIid(state2, col, row, side) {
+    const inset = state2.edgeInsets.get(canonicalEdgeKey(col, row, side));
+    return inset ? materialIid(inset.colorId) : 0;
+  }
+  function cornerInsetIid(state2, col, row, corner) {
+    const inset = state2.cornerInsets.get(cornerKey(col, row, corner));
+    return inset ? materialIid(inset.colorId) : 0;
+  }
+  function shapeCode(kind) {
+    if (kind === "orthogonalCross") return 1;
+    if (kind === "diagonalCross") return 2;
+    return 3;
+  }
+  function tileKindForShape(shape) {
+    if (shape === 1) return "orthogonalCross";
+    if (shape === 2) return "diagonalCross";
+    if (shape === 3) return "star";
+    throw new Error(`Invalid serialized tile shape ${shape}.`);
+  }
+  function materialIid(colorId) {
+    const iid = TILE_COLOR_IIDS_BY_ID.get(colorId);
+    if (iid === void 0) {
+      throw new Error(`Unknown tile material ${colorId}.`);
     }
-    if (prefix === "j") {
-      const bytes = base64UrlToBytes(encoded.slice(1));
-      return new TextDecoder().decode(bytes);
+    return iid;
+  }
+  function colorIdForIid(iid) {
+    const color = TILE_COLORS_BY_IID.get(iid);
+    if (!color) {
+      throw new Error(`Unknown tile material integer id ${iid}.`);
     }
-    return new TextDecoder().decode(base64UrlToBytes(encoded));
+    return color.id;
+  }
+  function groutColorIid(colorId) {
+    const index = GROUT_COLORS.findIndex((color) => color.id === colorId);
+    if (index < 0) {
+      throw new Error(`Unknown grout color ${colorId}.`);
+    }
+    return index + 1;
+  }
+  function groutColorIdFromIid(iid) {
+    const color = GROUT_COLORS[iid - 1];
+    if (!color) {
+      throw new Error(`Unknown grout color integer id ${iid}.`);
+    }
+    return color.id;
+  }
+  function halfInchUnits(value) {
+    const scaled = value * 2;
+    const rounded = Math.round(scaled);
+    if (Math.abs(scaled - rounded) > 1e-9) {
+      throw new Error(`Offset is not representable in half-inch units: ${value}`);
+    }
+    return rounded;
+  }
+  function encodeStateKey(state2) {
+    return [state2.shape, state2.main, ...state2.tacos].join("|");
+  }
+  function decodeStateKey(key) {
+    const [shape, main, a, b, c, d] = key.split("|").map(Number);
+    return {
+      shape,
+      main,
+      tacos: [a, b, c, d]
+    };
+  }
+  function sortedEntries(entries) {
+    return [...entries.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }
+  async function gzip(bytes) {
+    if (!("CompressionStream" in window)) {
+      throw new Error("This browser does not support compressed URLs.");
+    }
+    const stream = new Blob([bytesToArrayBuffer(bytes)]).stream().pipeThrough(new CompressionStream("gzip"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  async function gunzip(bytes) {
+    if (!("DecompressionStream" in window)) {
+      throw new Error("This browser does not support compressed URLs.");
+    }
+    const stream = new Blob([bytesToArrayBuffer(bytes)]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
   }
   function bytesToArrayBuffer(bytes) {
     const copy = new Uint8Array(bytes.byteLength);
@@ -1870,52 +2069,146 @@
     }
     return bytes;
   }
-  function toolCode(tool) {
-    if (tool === "grab") return "g";
-    if (tool === "erase") return "e";
-    if (tool === "colorPicker") return "c";
-    return "p";
+  var ByteWriter = class {
+    output = [];
+    writeByte(value) {
+      if (!Number.isInteger(value) || value < 0 || value > 255) {
+        throw new Error(`Byte value out of range: ${value}`);
+      }
+      this.output.push(value);
+    }
+    writeUnsigned16(value) {
+      if (!Number.isInteger(value) || value < 0 || value > 65535) {
+        throw new Error(`Unsigned 16-bit value out of range: ${value}`);
+      }
+      this.writeByte(value >> 8 & 255);
+      this.writeByte(value & 255);
+    }
+    writeSigned16(value) {
+      if (!Number.isInteger(value) || value < -32768 || value > 32767) {
+        throw new Error(`Signed 16-bit value out of range: ${value}`);
+      }
+      this.writeUnsigned16(value & 65535);
+    }
+    writeIndex(value) {
+      if (value < 255) {
+        this.writeByte(value);
+      } else {
+        this.writeByte(255);
+        this.writeUnsigned16(value);
+      }
+    }
+    bytes() {
+      return Uint8Array.from(this.output);
+    }
+  };
+  var ByteReader = class {
+    constructor(bytes) {
+      this.bytes = bytes;
+    }
+    bytes;
+    offset = 0;
+    readByte() {
+      if (this.offset >= this.bytes.length) {
+        throw new Error("Unexpected end of serialized state.");
+      }
+      const value = this.bytes[this.offset];
+      this.offset += 1;
+      return value;
+    }
+    readUnsigned16() {
+      return this.readByte() << 8 | this.readByte();
+    }
+    readSigned16() {
+      const value = this.readUnsigned16();
+      return value & 32768 ? value - 65536 : value;
+    }
+    readIndex() {
+      const value = this.readByte();
+      return value < 255 ? value : this.readUnsigned16();
+    }
+  };
+
+  // src/state.ts
+  var pendingSnapshot = "";
+  var lastWrittenSnapshot = "";
+  var pendingState;
+  var isWritingUrl = false;
+  var debounceTimer;
+  async function loadState(workspace2) {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get("s");
+    let next = cloneDefaultState2();
+    if (encoded) {
+      try {
+        next = await deserialize(encoded);
+        console.log("Expanded URL tile state", next);
+      } catch (error) {
+        console.warn("Unable to decode tile state URL; using defaults.", error);
+      }
+    }
+    next.zoom = initialZoomForRoom(workspace2, next.roomWidthInches, next.roomHeightInches);
+    lastWrittenSnapshot = snapshotState(next);
+    return next;
   }
-  function toolFromCode(code) {
-    if (code === "g") return "grab";
-    if (code === "e") return "erase";
-    if (code === "c") return "colorPicker";
-    if (code === "p") return "paint";
-    return void 0;
+  function cloneDefaultState2() {
+    return {
+      mode: DEFAULT_STATE.mode,
+      showGrid: DEFAULT_STATE.showGrid,
+      roomWidthInches: DEFAULT_STATE.roomWidthInches,
+      roomHeightInches: DEFAULT_STATE.roomHeightInches,
+      tileInches: DEFAULT_STATE.tileInches,
+      offsetXInches: DEFAULT_STATE.offsetXInches,
+      offsetYInches: DEFAULT_STATE.offsetYInches,
+      zoom: DEFAULT_STATE.zoom,
+      groutColorId: DEFAULT_STATE.groutColorId,
+      groutJointSixteenths: DEFAULT_STATE.groutJointSixteenths,
+      tool: DEFAULT_STATE.tool,
+      paintShape: DEFAULT_STATE.paintShape,
+      manufacturerId: DEFAULT_STATE.manufacturerId,
+      colorId: DEFAULT_STATE.colorId,
+      cells: /* @__PURE__ */ new Map(),
+      edgeInsets: /* @__PURE__ */ new Map(),
+      cornerInsets: /* @__PURE__ */ new Map()
+    };
   }
-  function paintShapeCode(shape) {
-    if (shape === "orthogonalCross") return "o";
-    if (shape === "diagonalCross") return "d";
-    if (shape === "star") return "s";
-    return "i";
+  function updateUrl(state2) {
+    const start2 = performance.now();
+    pendingSnapshot = snapshotState(state2);
+    pendingState = state2;
+    recordDebugUrlSync(performance.now() - start2, pendingSnapshot.length);
+    if (debounceTimer !== void 0) {
+      window.clearTimeout(debounceTimer);
+    }
+    debounceTimer = window.setTimeout(() => {
+      debounceTimer = void 0;
+      void processUrlWriteQueue();
+    }, 10);
   }
-  function paintShapeFromCode(code) {
-    if (code === "o") return "orthogonalCross";
-    if (code === "d") return "diagonalCross";
-    if (code === "s") return "star";
-    if (code === "i") return "inset";
-    return void 0;
-  }
-  function tileKindCode(kind) {
-    if (kind === "orthogonalCross") return "o";
-    if (kind === "diagonalCross") return "d";
-    return "s";
-  }
-  function tileKindFromCode(code) {
-    if (code === "o") return "orthogonalCross";
-    if (code === "d") return "diagonalCross";
-    if (code === "s") return "star";
-    return void 0;
-  }
-  function validManufacturer(id) {
-    return MANUFACTURERS.some((manufacturer) => manufacturer.id === id) ? id ?? void 0 : void 0;
-  }
-  function validColor(manufacturerId, id) {
-    const manufacturer = MANUFACTURERS.find((candidate) => candidate.id === manufacturerId);
-    return manufacturer?.colors.some((color) => color.id === id) ? id ?? void 0 : void 0;
-  }
-  function validGroutColor(id) {
-    return GROUT_COLORS.some((color) => color.id === id) ? id ?? void 0 : void 0;
+  async function processUrlWriteQueue() {
+    if (isWritingUrl || pendingSnapshot === "" || pendingSnapshot === lastWrittenSnapshot || !pendingState) {
+      return;
+    }
+    isWritingUrl = true;
+    const snapshot = pendingSnapshot;
+    const state2 = pendingState;
+    const start2 = performance.now();
+    try {
+      const encoded = await serialize(state2);
+      if (pendingSnapshot === snapshot) {
+        const nextUrl = `${window.location.pathname}?s=${encoded}`;
+        window.history.replaceState(null, "", nextUrl);
+        lastWrittenSnapshot = snapshot;
+      }
+    } catch (error) {
+      console.warn("Unable to compress tile state URL.", error);
+    } finally {
+      recordDebugUrlWrite(performance.now() - start2);
+      isWritingUrl = false;
+      if (pendingSnapshot !== lastWrittenSnapshot) {
+        void processUrlWriteQueue();
+      }
+    }
   }
   function validGroutJoint(value) {
     if (value === null) {
@@ -1927,36 +2220,6 @@
   function validTileInches(value) {
     const next = Number(value);
     return TILE_SIZE_OPTIONS.includes(next) ? next : void 0;
-  }
-  function validRoomWidth(value) {
-    if (value === null) {
-      return void 0;
-    }
-    const next = Number(value);
-    return Number.isInteger(next) ? clamp(next, MIN_ROOM_WIDTH_INCHES, MAX_ROOM_WIDTH_INCHES) : void 0;
-  }
-  function validRoomHeight(value) {
-    if (value === null) {
-      return void 0;
-    }
-    const next = Number(value);
-    return Number.isInteger(next) ? clamp(next, MIN_ROOM_HEIGHT_INCHES, MAX_ROOM_HEIGHT_INCHES) : void 0;
-  }
-  function validHalfInch(value) {
-    if (value === null) {
-      return void 0;
-    }
-    const next = Number(value);
-    if (!Number.isFinite(next)) {
-      return void 0;
-    }
-    return roundToHalfInch(next);
-  }
-  function validSide(value) {
-    return value === "n" || value === "e" || value === "s" || value === "w";
-  }
-  function validCorner(value) {
-    return value === "nw" || value === "ne" || value === "se" || value === "sw";
   }
 
   // src/main.ts
