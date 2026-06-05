@@ -349,7 +349,7 @@ select {
 }
 
 .area-editor {
-  display: grid;
+  display: none;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
@@ -541,10 +541,24 @@ select {
 }
 
 .room-frame {
+  position: relative;
   display: inline-block;
   transform: translate3d(0, 0, 0);
   transform-origin: top left;
   will-change: transform;
+}
+
+.room-frame::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 28px;
+  width: 18px;
+  height: 18px;
+  border-right: 2px solid #8f8c84;
+  border-bottom: 2px solid #8f8c84;
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 #room {
@@ -590,6 +604,10 @@ select {
 
   .room-specs {
     display: none;
+  }
+
+  .area-editor {
+    display: grid;
   }
 }
 

@@ -101,6 +101,7 @@ export type TacoEraseCandidate = {
 
 export type DragInteraction =
   | { type: "paint"; pointerId: number }
+  | { type: "spacePan"; pointerId: number; startClientPoint: Point; startPan: Point }
   | { type: "grab"; pointerId: number; startPoint: Point; startOffsetXInches: number; startOffsetYInches: number }
   | {
       type: "resizeRoom";

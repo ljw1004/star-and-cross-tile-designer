@@ -108,6 +108,8 @@ let lastDocumentTap:
       y: number;
     }
   | undefined;
+let isSpacePanActive = false;
+let lastCanvasPoint: Point | undefined;
 let lastPaintKey = "";
 let lastConflictSignature = "";
 let renderReadyFrame = 0;
@@ -277,6 +279,8 @@ function setupControls(): void {
   workspace.addEventListener("pointerup", handleWorkspacePointerUp);
   workspace.addEventListener("pointercancel", handleWorkspacePointerCancel);
   document.addEventListener("touchend", preventDoubleTapZoom, { capture: true, passive: false });
+  window.addEventListener("keydown", handleGlobalKeyDown);
+  window.addEventListener("keyup", handleGlobalKeyUp);
   window.addEventListener("wheel", handleWheel, { passive: false });
   window.addEventListener("resize", scheduleVisualViewportSync);
   window.addEventListener("orientationchange", resetVisualViewportReserve);
@@ -382,6 +386,39 @@ function setupMobilePanelControls(): void {
 
 function mobilePanelFromValue(value: string | undefined): MobilePanel | undefined {
   return value === "layout" || value === "tiles" || value === "grout" ? value : undefined;
+}
+
+function handleGlobalKeyDown(event: KeyboardEvent): void {
+  if (event.code !== "Space" || editableEventTarget(event.target)) {
+    return;
+  }
+
+  event.preventDefault();
+  if (isSpacePanActive) {
+    return;
+  }
+
+  isSpacePanActive = true;
+  updateCanvasCursor(lastCanvasPoint);
+}
+
+function handleGlobalKeyUp(event: KeyboardEvent): void {
+  if (event.code !== "Space") {
+    return;
+  }
+
+  event.preventDefault();
+  isSpacePanActive = false;
+  if (dragInteraction?.type !== "spacePan") {
+    updateCanvasCursor(lastCanvasPoint);
+  }
+}
+
+function editableEventTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
 }
 
 function setActiveMobilePanel(panel: MobilePanel | undefined): void {
@@ -1019,7 +1056,21 @@ function handlePointerDown(event: PointerEvent): void {
   lastPaintKey = "";
   canvas.setPointerCapture(event.pointerId);
   const point = canvasPoint(state, canvas, event);
+  lastCanvasPoint = point;
   if (!point || !pointInRoom(state, point)) {
+    return;
+  }
+
+  if (isSpacePanActive) {
+    event.preventDefault();
+    hideSwatchTooltip();
+    dragInteraction = {
+      type: "spacePan",
+      pointerId: event.pointerId,
+      startClientPoint: { x: event.clientX, y: event.clientY },
+      startPan: { ...viewportPan },
+    };
+    updateCanvasCursor(point);
     return;
   }
 
@@ -1065,8 +1116,13 @@ function handlePointerMove(event: PointerEvent): void {
   }
 
   if (!dragInteraction) {
-    showCanvasPickTooltip(event);
-    updateCanvasCursor(canvasPoint(state, canvas, event));
+    lastCanvasPoint = canvasPoint(state, canvas, event);
+    if (isSpacePanActive) {
+      hideSwatchTooltip();
+    } else {
+      showCanvasPickTooltip(event);
+    }
+    updateCanvasCursor(lastCanvasPoint);
     return;
   }
 
@@ -1076,6 +1132,8 @@ function handlePointerMove(event: PointerEvent): void {
 
   if (dragInteraction.type === "paint") {
     paintFromPointer(event);
+  } else if (dragInteraction.type === "spacePan") {
+    panViewportFromPointer(event, dragInteraction);
   } else if (dragInteraction.type === "grab") {
     moveGridFromPointer(event, dragInteraction);
   } else {
@@ -1090,9 +1148,13 @@ function handlePointerUp(event: PointerEvent): void {
 
   lastPaintKey = "";
   if (dragInteraction?.pointerId === event.pointerId) {
+    const finishedInteraction = dragInteraction;
     dragInteraction = undefined;
-    updateUrl(state);
-    updateCanvasCursor(canvasPoint(state, canvas, event));
+    lastCanvasPoint = canvasPoint(state, canvas, event);
+    if (finishedInteraction.type !== "spacePan") {
+      updateUrl(state);
+    }
+    updateCanvasCursor(lastCanvasPoint);
   }
   canvas.releasePointerCapture(event.pointerId);
 }
@@ -1105,6 +1167,7 @@ function handlePointerCancel(event: PointerEvent): void {
   lastPaintKey = "";
   if (dragInteraction?.pointerId === event.pointerId) {
     dragInteraction = undefined;
+    lastCanvasPoint = undefined;
     updateCanvasCursor();
   }
   hideSwatchTooltip();
@@ -1116,7 +1179,8 @@ function handlePointerLeave(event: PointerEvent): void {
   }
 
   if (!dragInteraction) {
-    updateCanvasCursor(canvasPoint(state, canvas, event));
+    lastCanvasPoint = undefined;
+    updateCanvasCursor();
   }
   hideSwatchTooltip();
 }
@@ -1323,6 +1387,12 @@ function panViewportFromTouch(currentPoint: Point, gesture: Extract<TouchGesture
   updateViewportTransform();
 }
 
+function panViewportFromPointer(event: PointerEvent, interaction: Extract<DragInteraction, { type: "spacePan" }>): void {
+  viewportPan.x = interaction.startPan.x + event.clientX - interaction.startClientPoint.x;
+  viewportPan.y = interaction.startPan.y + event.clientY - interaction.startClientPoint.y;
+  updateViewportTransform();
+}
+
 function moveGridFromTouch(currentPoint: Point, gesture: Extract<TouchGesture, { type: "grab" }>): void {
   state.offsetXInches = roundToHalfInch(gesture.startOffsetXInches + (currentPoint.x - gesture.startClientPoint.x) / (SCALE * state.zoom));
   state.offsetYInches = roundToHalfInch(gesture.startOffsetYInches + (currentPoint.y - gesture.startClientPoint.y) / (SCALE * state.zoom));
@@ -1346,9 +1416,6 @@ function distanceBetween(first: Point, second: Point): number {
 function handleWheel(event: WheelEvent): void {
   event.preventDefault();
   const canvasRect = canvas.getBoundingClientRect();
-  const workspaceRect = workspace.getBoundingClientRect();
-  const anchorX = workspaceRect.left + workspace.clientWidth / 2 - canvasRect.left;
-  const anchorY = workspaceRect.top + workspace.clientHeight / 2 - canvasRect.top;
   const previousZoom = state.zoom;
   const nextZoom = normalizeZoom(previousZoom * (event.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR));
 
@@ -1356,14 +1423,50 @@ function handleWheel(event: WheelEvent): void {
     return;
   }
 
+  const room = roomPx(state);
+  const anchorClientX = clamp(event.clientX, canvasRect.left, canvasRect.right);
+  const anchorClientY = clamp(event.clientY, canvasRect.top, canvasRect.bottom);
+  const anchorRoomPoint = {
+    x: ((anchorClientX - canvasRect.left) / canvasRect.width) * room.width,
+    y: ((anchorClientY - canvasRect.top) / canvasRect.height) * room.height,
+  };
+  const baseCanvasLeft = canvasRect.left - viewportPan.x;
+  const baseCanvasTop = canvasRect.top - viewportPan.y;
+
   state.zoom = nextZoom;
   setupCanvas();
   render();
 
-  const scale = nextZoom / previousZoom;
-  workspace.scrollLeft += anchorX * (scale - 1);
-  workspace.scrollTop += anchorY * (scale - 1);
+  viewportPan.x = anchorClientX - baseCanvasLeft - anchorRoomPoint.x * nextZoom;
+  viewportPan.y = anchorClientY - baseCanvasTop - anchorRoomPoint.y * nextZoom;
+  clampViewportPanToDefaultTopLeft(baseCanvasLeft, baseCanvasTop);
+  updateViewportTransform();
   updateUrl(state);
+}
+
+function clampViewportPanToDefaultTopLeft(baseCanvasLeft: number, baseCanvasTop: number): void {
+  const workspaceRect = workspace.getBoundingClientRect();
+  const defaultLeft = workspaceRect.left + workspacePadding("left");
+  const defaultTop = workspaceRect.top + workspacePadding("top");
+  const room = roomPx(state);
+  const availableWidth = Math.max(1, workspace.clientWidth - workspacePadding("left") - workspacePadding("right"));
+  const visibleWorkspaceHeight = Math.min(workspace.clientHeight, window.innerHeight - workspaceRect.top);
+  const availableHeight = Math.max(1, visibleWorkspaceHeight - workspacePadding("top") - workspacePadding("bottom"));
+  const frameHeight = roomFrame.getBoundingClientRect().height;
+  const defaultPanX = defaultLeft - baseCanvasLeft;
+  const defaultPanY = defaultTop - baseCanvasTop;
+
+  if (room.width * state.zoom <= availableWidth) {
+    viewportPan.x = defaultPanX;
+  } else {
+    viewportPan.x = Math.min(viewportPan.x, defaultPanX);
+  }
+
+  if (frameHeight <= availableHeight) {
+    viewportPan.y = defaultPanY;
+  } else {
+    viewportPan.y = Math.min(viewportPan.y, defaultPanY);
+  }
 }
 
 function paintFromPointer(event: PointerEvent): void {
@@ -1434,12 +1537,21 @@ function manufacturerIdForColor(colorId: string): string {
 }
 
 function updateCanvasCursor(point?: Point): void {
+  if (dragInteraction?.type === "spacePan") {
+    canvas.style.cursor = "grabbing";
+    return;
+  }
   if (dragInteraction?.type === "grab") {
     canvas.style.cursor = "grabbing";
     return;
   }
   if (dragInteraction?.type === "resizeRoom") {
     canvas.style.cursor = resizeCursor(dragInteraction.handle);
+    return;
+  }
+
+  if (isSpacePanActive && point && pointInRoom(state, point)) {
+    canvas.style.cursor = "grab";
     return;
   }
 

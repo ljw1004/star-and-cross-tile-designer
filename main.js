@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   // src/constants.ts
-  var DEFAULT_ROOM_INCHES = { width: 60, height: 96 };
+  var DEFAULT_ROOM_INCHES = { width: 48, height: 42 };
   var DEFAULT_TILE_INCHES = 5;
   var TILE_SIZE_OPTIONS = [3, 4, 5, 6, 7, 8];
   var MIN_ROOM_WIDTH_INCHES = 24;
@@ -2283,6 +2283,8 @@
   var colorToastTimer;
   var visualViewportBottomReserve = 0;
   var lastDocumentTap;
+  var isSpacePanActive = false;
+  var lastCanvasPoint;
   var lastPaintKey = "";
   var lastConflictSignature = "";
   var renderReadyFrame = 0;
@@ -2437,6 +2439,8 @@
     workspace.addEventListener("pointerup", handleWorkspacePointerUp);
     workspace.addEventListener("pointercancel", handleWorkspacePointerCancel);
     document.addEventListener("touchend", preventDoubleTapZoom, { capture: true, passive: false });
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    window.addEventListener("keyup", handleGlobalKeyUp);
     window.addEventListener("wheel", handleWheel, { passive: false });
     window.addEventListener("resize", scheduleVisualViewportSync);
     window.addEventListener("orientationchange", resetVisualViewportReserve);
@@ -2529,6 +2533,33 @@
   }
   function mobilePanelFromValue(value) {
     return value === "layout" || value === "tiles" || value === "grout" ? value : void 0;
+  }
+  function handleGlobalKeyDown(event) {
+    if (event.code !== "Space" || editableEventTarget(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    if (isSpacePanActive) {
+      return;
+    }
+    isSpacePanActive = true;
+    updateCanvasCursor(lastCanvasPoint);
+  }
+  function handleGlobalKeyUp(event) {
+    if (event.code !== "Space") {
+      return;
+    }
+    event.preventDefault();
+    isSpacePanActive = false;
+    if (dragInteraction?.type !== "spacePan") {
+      updateCanvasCursor(lastCanvasPoint);
+    }
+  }
+  function editableEventTarget(target) {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
   }
   function setActiveMobilePanel(panel) {
     activeMobilePanel = panel;
@@ -3080,7 +3111,20 @@ by ${manufacturer.name}`;
     lastPaintKey = "";
     canvas.setPointerCapture(event.pointerId);
     const point = canvasPoint(state, canvas, event);
+    lastCanvasPoint = point;
     if (!point || !pointInRoom(state, point)) {
+      return;
+    }
+    if (isSpacePanActive) {
+      event.preventDefault();
+      hideSwatchTooltip();
+      dragInteraction = {
+        type: "spacePan",
+        pointerId: event.pointerId,
+        startClientPoint: { x: event.clientX, y: event.clientY },
+        startPan: { ...viewportPan }
+      };
+      updateCanvasCursor(point);
       return;
     }
     const resizeHandle = resizeHandleAtPoint(state, point);
@@ -3120,8 +3164,13 @@ by ${manufacturer.name}`;
       return;
     }
     if (!dragInteraction) {
-      showCanvasPickTooltip(event);
-      updateCanvasCursor(canvasPoint(state, canvas, event));
+      lastCanvasPoint = canvasPoint(state, canvas, event);
+      if (isSpacePanActive) {
+        hideSwatchTooltip();
+      } else {
+        showCanvasPickTooltip(event);
+      }
+      updateCanvasCursor(lastCanvasPoint);
       return;
     }
     if (dragInteraction.pointerId !== event.pointerId) {
@@ -3129,6 +3178,8 @@ by ${manufacturer.name}`;
     }
     if (dragInteraction.type === "paint") {
       paintFromPointer(event);
+    } else if (dragInteraction.type === "spacePan") {
+      panViewportFromPointer(event, dragInteraction);
     } else if (dragInteraction.type === "grab") {
       moveGridFromPointer(event, dragInteraction);
     } else {
@@ -3141,9 +3192,13 @@ by ${manufacturer.name}`;
     }
     lastPaintKey = "";
     if (dragInteraction?.pointerId === event.pointerId) {
+      const finishedInteraction = dragInteraction;
       dragInteraction = void 0;
-      updateUrl(state);
-      updateCanvasCursor(canvasPoint(state, canvas, event));
+      lastCanvasPoint = canvasPoint(state, canvas, event);
+      if (finishedInteraction.type !== "spacePan") {
+        updateUrl(state);
+      }
+      updateCanvasCursor(lastCanvasPoint);
     }
     canvas.releasePointerCapture(event.pointerId);
   }
@@ -3154,6 +3209,7 @@ by ${manufacturer.name}`;
     lastPaintKey = "";
     if (dragInteraction?.pointerId === event.pointerId) {
       dragInteraction = void 0;
+      lastCanvasPoint = void 0;
       updateCanvasCursor();
     }
     hideSwatchTooltip();
@@ -3163,7 +3219,8 @@ by ${manufacturer.name}`;
       return;
     }
     if (!dragInteraction) {
-      updateCanvasCursor(canvasPoint(state, canvas, event));
+      lastCanvasPoint = void 0;
+      updateCanvasCursor();
     }
     hideSwatchTooltip();
   }
@@ -3341,6 +3398,11 @@ by ${manufacturer.name}`;
     viewportPan.y = gesture.startPan.y + currentPoint.y - gesture.startClientPoint.y;
     updateViewportTransform();
   }
+  function panViewportFromPointer(event, interaction) {
+    viewportPan.x = interaction.startPan.x + event.clientX - interaction.startClientPoint.x;
+    viewportPan.y = interaction.startPan.y + event.clientY - interaction.startClientPoint.y;
+    updateViewportTransform();
+  }
   function moveGridFromTouch(currentPoint, gesture) {
     state.offsetXInches = roundToHalfInch(gesture.startOffsetXInches + (currentPoint.x - gesture.startClientPoint.x) / (SCALE * state.zoom));
     state.offsetYInches = roundToHalfInch(gesture.startOffsetYInches + (currentPoint.y - gesture.startClientPoint.y) / (SCALE * state.zoom));
@@ -3360,21 +3422,50 @@ by ${manufacturer.name}`;
   function handleWheel(event) {
     event.preventDefault();
     const canvasRect = canvas.getBoundingClientRect();
-    const workspaceRect = workspace.getBoundingClientRect();
-    const anchorX = workspaceRect.left + workspace.clientWidth / 2 - canvasRect.left;
-    const anchorY = workspaceRect.top + workspace.clientHeight / 2 - canvasRect.top;
     const previousZoom = state.zoom;
     const nextZoom = normalizeZoom(previousZoom * (event.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR));
     if (nextZoom === previousZoom) {
       return;
     }
+    const room = roomPx(state);
+    const anchorClientX = clamp(event.clientX, canvasRect.left, canvasRect.right);
+    const anchorClientY = clamp(event.clientY, canvasRect.top, canvasRect.bottom);
+    const anchorRoomPoint = {
+      x: (anchorClientX - canvasRect.left) / canvasRect.width * room.width,
+      y: (anchorClientY - canvasRect.top) / canvasRect.height * room.height
+    };
+    const baseCanvasLeft = canvasRect.left - viewportPan.x;
+    const baseCanvasTop = canvasRect.top - viewportPan.y;
     state.zoom = nextZoom;
     setupCanvas();
     render();
-    const scale = nextZoom / previousZoom;
-    workspace.scrollLeft += anchorX * (scale - 1);
-    workspace.scrollTop += anchorY * (scale - 1);
+    viewportPan.x = anchorClientX - baseCanvasLeft - anchorRoomPoint.x * nextZoom;
+    viewportPan.y = anchorClientY - baseCanvasTop - anchorRoomPoint.y * nextZoom;
+    clampViewportPanToDefaultTopLeft(baseCanvasLeft, baseCanvasTop);
+    updateViewportTransform();
     updateUrl(state);
+  }
+  function clampViewportPanToDefaultTopLeft(baseCanvasLeft, baseCanvasTop) {
+    const workspaceRect = workspace.getBoundingClientRect();
+    const defaultLeft = workspaceRect.left + workspacePadding("left");
+    const defaultTop = workspaceRect.top + workspacePadding("top");
+    const room = roomPx(state);
+    const availableWidth = Math.max(1, workspace.clientWidth - workspacePadding("left") - workspacePadding("right"));
+    const visibleWorkspaceHeight = Math.min(workspace.clientHeight, window.innerHeight - workspaceRect.top);
+    const availableHeight = Math.max(1, visibleWorkspaceHeight - workspacePadding("top") - workspacePadding("bottom"));
+    const frameHeight = roomFrame.getBoundingClientRect().height;
+    const defaultPanX = defaultLeft - baseCanvasLeft;
+    const defaultPanY = defaultTop - baseCanvasTop;
+    if (room.width * state.zoom <= availableWidth) {
+      viewportPan.x = defaultPanX;
+    } else {
+      viewportPan.x = Math.min(viewportPan.x, defaultPanX);
+    }
+    if (frameHeight <= availableHeight) {
+      viewportPan.y = defaultPanY;
+    } else {
+      viewportPan.y = Math.min(viewportPan.y, defaultPanY);
+    }
   }
   function paintFromPointer(event) {
     const point = canvasPoint(state, canvas, event);
@@ -3434,12 +3525,20 @@ by ${manufacturer.name}`;
     return MANUFACTURERS.find((manufacturer) => manufacturer.colors.some((color) => color.id === colorId))?.id ?? state.manufacturerId;
   }
   function updateCanvasCursor(point) {
+    if (dragInteraction?.type === "spacePan") {
+      canvas.style.cursor = "grabbing";
+      return;
+    }
     if (dragInteraction?.type === "grab") {
       canvas.style.cursor = "grabbing";
       return;
     }
     if (dragInteraction?.type === "resizeRoom") {
       canvas.style.cursor = resizeCursor(dragInteraction.handle);
+      return;
+    }
+    if (isSpacePanActive && point && pointInRoom(state, point)) {
+      canvas.style.cursor = "grab";
       return;
     }
     const handle = point && pointInRoom(state, point) ? resizeHandleAtPoint(state, point) : void 0;

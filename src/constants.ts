@@ -1,6 +1,6 @@
 import type { AppState, Corner, GroutColor, Manufacturer, PaletteColor, Side, TileTexture } from "./types";
 
-export const DEFAULT_ROOM_INCHES = { width: 60, height: 96 };
+export const DEFAULT_ROOM_INCHES = { width: 48, height: 42 };
 export const DEFAULT_TILE_INCHES = 5;
 export const TILE_SIZE_OPTIONS = [3, 4, 5, 6, 7, 8];
 export const MIN_ROOM_WIDTH_INCHES = 24;
