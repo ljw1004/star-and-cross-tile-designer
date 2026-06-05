@@ -4,9 +4,9 @@ An interactive designer for star-and-cross tile layouts. Use it to explore bathr
 
 [Start designing](https://unto.me/tiles/)
 
-[![demo](readme-samples/demo.mp4 "demo")](https://unto.me/tiles/?s=H4sIAAAAAAAAE1WJwQ3DMAwDj1LVWHW8QIYo0FGK7r9JgBQy_An5OR5_Aj68N4Dw67xOkhxushUp1OqWpNaIwjmP4okcIhZSfmH5L8QseFdXd55NJtPrgWzYbrqZ3cbNeCqVDmyz_AFrMSdAtQAAAA)
+[![demo](readme-samples/demo.gif "demo")](https://unto.me/tiles/?s=H4sIAAAAAAAAE1WJwQ3DMAwDj1LVWHW8QIYo0FGK7r9JgBQy_An5OR5_Aj68N4Dw67xOkhxushUp1OqWpNaIwjmP4okcIhZSfmH5L8QseFdXd55NJtPrgWzYbrqZ3cbNeCqVDmyz_AFrMSdAtQAAAA)
 
-The style is called *Star and cross* or *Arabesque*. By combining just three kinds of tile -- star, cross, and small squares called "tacos" -- you can make a huge variety of patterns. Here are some I've come up with myself, and some from the [Equipe Kasbah](https://www.equipeceramicas.com/en/portfolio-item/kasbah/) website. You can click on them to edit.
+The style is called *Star and cross*. By combining just three kinds of tile -- star, cross, and small squares called "tacos" -- you can make a huge variety of patterns. Here are some I've come up with myself, and some from the [Equipe Kasbah](https://www.equipeceramicas.com/en/portfolio-item/kasbah/) website. You can click on them to edit.
 
 If you want to share your designs with someone, just send them the webpage address of your design. Your design is encoded in the webpage address itself. You can bookmark a design to save it.
 
