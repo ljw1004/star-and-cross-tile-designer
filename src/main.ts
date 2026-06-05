@@ -8,6 +8,7 @@ import {
   SCALE,
   ZOOM_FACTOR,
 } from "./constants";
+import { paletteColor } from "./color";
 import { beginDebugFrame, finishDebugFrame, renderDebugOverlay } from "./debug";
 import {
   canvasPoint,
@@ -28,7 +29,7 @@ import { colorIdAt, colorOnlyAt, eraseAt, paintKey, placeCross, placeInset, plac
 import { fillMaterialPath } from "./material";
 import { draw, markRenderReady, renderConflictReport } from "./render";
 import { loadState, updateUrl, validGroutJoint, validTileInches } from "./state";
-import type { AppState, CrossKind, DragInteraction, Mode, PaintShape, Point, ResizeHandle, Tool } from "./types";
+import type { AppState, CrossKind, DragInteraction, Mode, PaintShape, Point, ResizeHandle, SwatchVisibility, Tool } from "./types";
 
 const canvas = requiredElement(document.querySelector<HTMLCanvasElement>("#room"), "room canvas");
 const workspace = requiredElement(document.querySelector<HTMLElement>(".workspace"), "workspace");
@@ -113,15 +114,19 @@ let lastCanvasPoint: Point | undefined;
 let lastPaintKey = "";
 let lastConflictSignature = "";
 let renderReadyFrame = 0;
+let extraPaletteColorId: string | undefined;
+let compactPaletteForViewportHeight = false;
 const materialSwatchCache = new Map<string, string>();
 const touchPointers = new Map<number, Point>();
 const viewportPan: Point = { x: 0, y: 0 };
 const TOUCH_DRAG_THRESHOLD_PX = 10;
+const COMPACT_PALETTE_HEIGHT_PX = 960;
 
 void start();
 
 async function start(): Promise<void> {
   syncVisualViewportVars();
+  updatePaletteDensityForViewportHeight({ render: false });
   state = await loadState(workspace);
   rememberNonGrabMode();
   rememberMobilePaintMode();
@@ -283,6 +288,7 @@ function setupControls(): void {
   window.addEventListener("keyup", handleGlobalKeyUp);
   window.addEventListener("wheel", handleWheel, { passive: false });
   window.addEventListener("resize", scheduleVisualViewportSync);
+  window.addEventListener("resize", schedulePaletteDensitySync);
   window.addEventListener("orientationchange", resetVisualViewportReserve);
   window.addEventListener("focus", resetVisualViewportReserve);
   document.addEventListener("visibilitychange", resetVisualViewportReserve);
@@ -298,6 +304,7 @@ function setupControls(): void {
   mobileBottomBar.addEventListener("touchmove", preventControlPinch, { passive: false });
   window.visualViewport?.addEventListener("resize", scheduleVisualViewportSync);
   window.visualViewport?.addEventListener("scroll", scheduleVisualViewportSync);
+  window.visualViewport?.addEventListener("resize", schedulePaletteDensitySync);
 }
 
 function syncVisualViewportVars(): void {
@@ -334,9 +341,36 @@ function scheduleVisualViewportSync(): void {
   window.setTimeout(syncVisualViewportVars, 300);
 }
 
+function visibleViewportHeight(): number {
+  return window.visualViewport?.height ?? window.innerHeight;
+}
+
+function updatePaletteDensityForViewportHeight({ render: shouldRender }: { render: boolean }): void {
+  const height = visibleViewportHeight();
+  const nextCompact = height < COMPACT_PALETTE_HEIGHT_PX;
+  if (nextCompact === compactPaletteForViewportHeight) {
+    return;
+  }
+
+  compactPaletteForViewportHeight = nextCompact;
+  if (!shouldRender || !state) {
+    return;
+  }
+  renderPalette();
+  renderGroutPalette();
+}
+
+function schedulePaletteDensitySync(): void {
+  updatePaletteDensityForViewportHeight({ render: true });
+  window.requestAnimationFrame(() => updatePaletteDensityForViewportHeight({ render: true }));
+  window.setTimeout(() => updatePaletteDensityForViewportHeight({ render: true }), 80);
+  window.setTimeout(() => updatePaletteDensityForViewportHeight({ render: true }), 300);
+}
+
 function resetVisualViewportReserve(): void {
   visualViewportBottomReserve = 0;
   scheduleVisualViewportSync();
+  schedulePaletteDensitySync();
 }
 
 function preventControlPinch(event: TouchEvent): void {
@@ -685,6 +719,11 @@ function renderPalette(): void {
   colorPickerTool.setAttribute("aria-pressed", String(state.tool === "colorPicker"));
 
   for (const manufacturer of MANUFACTURERS) {
+    const visibleColors = manufacturer.colors.filter((color) => colorShownInDefaultPalette(color.id));
+    if (visibleColors.length === 0) {
+      continue;
+    }
+
     const marker = document.createElement("div");
     marker.className = "palette-manufacturer";
     marker.dataset.tooltip = manufacturer.name;
@@ -693,36 +732,63 @@ function renderPalette(): void {
     attachSwatchTooltip(marker);
     palette.append(marker);
 
-    for (const color of manufacturer.colors) {
-      const swatch = document.createElement("button");
-      swatch.className = "swatch";
-      swatch.type = "button";
-      swatch.style.backgroundColor = color.value;
-      swatch.style.backgroundImage = materialSwatchBackground(color.id);
-      swatch.dataset.colorId = color.id;
-      const label = materialTooltipText(manufacturer.id, color.id) ?? color.name;
-      swatch.dataset.tooltip = label;
-      swatch.setAttribute("aria-label", label);
-      swatch.addEventListener("click", () => {
-        const clickedCurrentPaintColor = state.tool === "paint" && state.paintShape !== undefined && state.colorId === color.id;
-        selectColor(manufacturer.id, color.id);
-        showColorToast(label);
-        if (clickedCurrentPaintColor || state.tool !== "paint" || !state.paintShape) {
-          switchToPaintColorOnly();
-        } else {
-          rememberMobilePaintMode();
-        }
-        syncInteractionControls();
-        syncPaletteState();
-        updateUrl(state);
-        updateCanvasCursor();
-        dismissMobilePanelAfterAction();
-      });
-      attachSwatchTooltip(swatch);
-      palette.append(swatch);
+    for (const color of visibleColors) {
+      palette.append(createMaterialSwatch(manufacturer.id, color.id));
     }
   }
+
+  if (extraPaletteColorId) {
+    const manufacturerId = manufacturerIdForColor(extraPaletteColorId);
+    palette.append(createMaterialSwatch(manufacturerId, extraPaletteColorId, ["extra-color-swatch"]));
+  } else {
+    const placeholder = document.createElement("div");
+    placeholder.className = "swatch extra-color-swatch is-empty";
+    placeholder.setAttribute("aria-hidden", "true");
+    palette.append(placeholder);
+  }
+
   syncPaletteState();
+}
+
+function createMaterialSwatch(manufacturerId: string, colorId: string, extraClasses: string[] = []): HTMLButtonElement {
+  const color = paletteColor(colorId);
+  const swatch = document.createElement("button");
+  swatch.className = ["swatch", ...extraClasses].join(" ");
+  swatch.type = "button";
+  swatch.style.backgroundColor = color.value;
+  swatch.style.backgroundImage = materialSwatchBackground(color.id);
+  swatch.dataset.colorId = color.id;
+  const label = materialTooltipText(manufacturerId, color.id) ?? color.name;
+  swatch.dataset.tooltip = label;
+  swatch.setAttribute("aria-label", label);
+  swatch.addEventListener("click", () => {
+    const clickedCurrentPaintColor = state.tool === "paint" && state.paintShape !== undefined && state.colorId === color.id;
+    selectColor(manufacturerId, color.id);
+    showColorToast(label);
+    if (clickedCurrentPaintColor || state.tool !== "paint" || !state.paintShape) {
+      switchToPaintColorOnly();
+    } else {
+      rememberMobilePaintMode();
+    }
+    syncInteractionControls();
+    syncPaletteState();
+    updateUrl(state);
+    updateCanvasCursor();
+    dismissMobilePanelAfterAction();
+  });
+  attachSwatchTooltip(swatch);
+  return swatch;
+}
+
+function colorShownInDefaultPalette(colorId: string): boolean {
+  return visibilityShownInDefaultPalette(paletteColor(colorId).swatchVisibility);
+}
+
+function visibilityShownInDefaultPalette(visibility: SwatchVisibility): boolean {
+  if (visibility === "hidden") {
+    return false;
+  }
+  return visibility === "compact" || !compactPaletteForViewportHeight;
 }
 
 function syncPaletteState(): void {
@@ -953,6 +1019,10 @@ function materialSwatchBackground(colorId: string): string {
 function renderGroutPalette(): void {
   groutPalette.innerHTML = "";
   for (const groutColor of GROUT_COLORS) {
+    if (!visibilityShownInDefaultPalette(groutColor.swatchVisibility)) {
+      continue;
+    }
+
     const swatch = document.createElement("button");
     swatch.className = "swatch";
     swatch.type = "button";
@@ -1522,6 +1592,10 @@ function pickColorFromPointer(point: Point): void {
     return;
   }
 
+  if (!colorShownInDefaultPalette(colorId)) {
+    extraPaletteColorId = colorId;
+    renderPalette();
+  }
   selectColor(manufacturerIdForColor(colorId), colorId);
   const label = materialTooltipTextForColor(colorId);
   if (label) {

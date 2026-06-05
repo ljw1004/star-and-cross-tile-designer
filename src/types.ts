@@ -14,6 +14,7 @@ export type PaletteColor = {
   value: string;
   texture: TileTexture;
   shadeVariation: 0 | 1 | 2 | 3 | 4;
+  swatchVisibility: SwatchVisibility;
   sheen: number;
   grain: number;
   clouding: number;
@@ -58,11 +59,17 @@ export type AppState = {
 
 export type GroutColor = {
   id: string;
+  gid: number;
   name: string;
   value: string;
+  swatchVisibility: SwatchVisibility;
 };
 
+export type SwatchVisibility = "full" | "compact" | "hidden";
+
 export type TileTexture =
+  | "kasbah_matte_porcelain"
+  | "kasbah_gloss_porcelain"
   | "matte_porcelain"
   | "matte_ceramic"
   | "gloss_ceramic"

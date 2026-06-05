@@ -55,6 +55,10 @@ Source file index:
 
 ## How tiles fit together
 
+Some reference diagrams
+- reference/geometry.png -- this is the mathematics of how the pieces fit together
+- reference/cross-and-star.png -- this is Kasbah's reference diagram of how they fit together
+
 The image uses three physical pieces:
 
 - The 4.75"x4.75" "Base" tile is the cross tile. In diagonal mode it looks like an X: four broad corner lobes, with a V-shaped concave notch centered on each edge.

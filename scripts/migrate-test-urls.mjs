@@ -41,7 +41,7 @@ function readGroutIids() {
   if (!block) {
     throw new Error("Could not find GROUT_COLORS in src/constants.ts.");
   }
-  return new Map([...block.matchAll(/\{\s*id:\s*"([^"]+)"/g)].map((match, index) => [match[1], index + 1]));
+  return new Map([...block.matchAll(/\{\s*id:\s*"([^"]+)",\s*gid:\s*(\d+)/g)].map((match) => [match[1], Number(match[2])]));
 }
 
 function serializeOldUrl(url) {

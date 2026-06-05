@@ -62,7 +62,7 @@
  *     uint8  placeholderSize      // inches
  *     int16  gridOffsetXTimes2    // half-inch units
  *     int16  gridOffsetYTimes2    // half-inch units
- *     uint8  groutColorId         // 1-based index in GROUT_COLORS
+ *     uint8  groutColorGid        // stable GroutColor.gid
  *     uint8  groutWidth           // sixteenths of an inch
  *
  *   Grid window
@@ -139,7 +139,8 @@
  */
 import {
   DEFAULT_STATE,
-  GROUT_COLORS,
+  GROUT_COLOR_GIDS_BY_ID,
+  GROUT_COLORS_BY_GID,
   GROUT_JOINT_OPTIONS,
   TILE_COLOR_IIDS_BY_ID,
   TILE_COLORS_BY_IID,
@@ -200,7 +201,7 @@ function serializeRaw(state: AppState): Uint8Array {
   writer.writeByte(state.tileInches);
   writer.writeSigned16(halfInchUnits(state.offsetXInches));
   writer.writeSigned16(halfInchUnits(state.offsetYInches));
-  writer.writeByte(groutColorIid(state.groutColorId));
+  writer.writeByte(groutColorGid(state.groutColorId));
   writer.writeByte(state.groutJointSixteenths);
 
   writer.writeSigned16(grid.originCol);
@@ -234,7 +235,7 @@ function deserializeRaw(bytes: Uint8Array): AppState {
   state.tileInches = reader.readByte();
   state.offsetXInches = reader.readSigned16() / 2;
   state.offsetYInches = reader.readSigned16() / 2;
-  state.groutColorId = groutColorIdFromIid(reader.readByte());
+  state.groutColorId = groutColorIdFromGid(reader.readByte());
   state.groutJointSixteenths = reader.readByte();
 
   if (!TILE_SIZE_OPTIONS.includes(state.tileInches)) {
@@ -534,18 +535,18 @@ function colorIdForIid(iid: number): string {
   return color.id;
 }
 
-function groutColorIid(colorId: string): number {
-  const index = GROUT_COLORS.findIndex((color) => color.id === colorId);
-  if (index < 0) {
+function groutColorGid(colorId: string): number {
+  const gid = GROUT_COLOR_GIDS_BY_ID.get(colorId);
+  if (gid === undefined) {
     throw new Error(`Unknown grout color ${colorId}.`);
   }
-  return index + 1;
+  return gid;
 }
 
-function groutColorIdFromIid(iid: number): string {
-  const color = GROUT_COLORS[iid - 1];
+function groutColorIdFromGid(gid: number): string {
+  const color = GROUT_COLORS_BY_GID.get(gid);
   if (!color) {
-    throw new Error(`Unknown grout color integer id ${iid}.`);
+    throw new Error(`Unknown grout color id ${gid}.`);
   }
   return color.id;
 }
