@@ -845,9 +845,10 @@
     return `${target.type}:${target.key}`;
   }
   function placeCross(state2, col, row, kind, colorId) {
+    const displacedTile = state2.cells.get(cellKey(col, row));
     state2.cells.set(cellKey(col, row), { kind, colorId });
     fixCrossConflicts(state2, col, row, kind);
-    placeCompatibleTacosForCross(state2, col, row, kind, colorId);
+    placeCompatibleTacosForCross(state2, col, row, kind, colorId, displacedTile);
   }
   function fixCrossConflicts(state2, col, row, kind) {
     if (kind === "diagonalCross") {
@@ -864,16 +865,28 @@
       }
     }
   }
-  function placeCompatibleTacosForCross(state2, col, row, kind, colorId) {
+  function placeCompatibleTacosForCross(state2, col, row, kind, colorId, displacedTile) {
     if (kind === "diagonalCross") {
       for (const side of SIDES) {
-        setEdgeInsetIfNoNewConflict(state2, col, row, side, colorId);
+        setEdgeInsetIfNoNewConflict(state2, col, row, side, tacoAutofillColor(kind, colorId, displacedTile));
       }
       return;
     }
     for (const corner of CORNERS) {
-      setCornerInsetIfNoNewConflict(state2, col, row, corner, colorId);
+      setCornerInsetIfNoNewConflict(state2, col, row, corner, tacoAutofillColor(kind, colorId, displacedTile));
     }
+  }
+  function tacoAutofillColor(kind, colorId, displacedTile) {
+    if (!displacedTile) {
+      return colorId;
+    }
+    if (kind === "diagonalCross" && displacedTile.kind !== "diagonalCross") {
+      return displacedTile.colorId;
+    }
+    if (kind === "orthogonalCross" && displacedTile.kind !== "orthogonalCross") {
+      return displacedTile.colorId;
+    }
+    return colorId;
   }
   function setEdgeInsetIfNoNewConflict(state2, col, row, side, colorId) {
     const key = canonicalEdgeKey(col, row, side);

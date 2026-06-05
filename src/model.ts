@@ -2,7 +2,9 @@ import { CORNERS, SIDES } from "./constants";
 import { analyzeLayoutConflicts } from "./conflicts";
 import { cornerInsetCenter, cornerTacoSidePx, distance, edgeMidpoint, nearestTacoTarget, tacoHalfDiagonalPx } from "./geometry";
 import { canonicalEdgeKey, cellKey, cellsForEdge, cornerKey, neighborForSide, neighbors, oppositeSide, parseEdgeKey } from "./keys";
-import type { AppState, Corner, CrossKind, Point, Side, TacoEraseCandidate } from "./types";
+import type { AppState, Corner, CrossKind, Point, Side, TacoEraseCandidate, TileKind } from "./types";
+
+type DisplacedTile = { kind: TileKind; colorId: string } | undefined;
 
 export function paintKey(state: AppState, point: Point, col: number, row: number): string {
   if (state.tool === "erase") {
@@ -26,9 +28,10 @@ export function paintKey(state: AppState, point: Point, col: number, row: number
 }
 
 export function placeCross(state: AppState, col: number, row: number, kind: CrossKind, colorId: string): void {
+  const displacedTile = state.cells.get(cellKey(col, row));
   state.cells.set(cellKey(col, row), { kind, colorId });
   fixCrossConflicts(state, col, row, kind);
-  placeCompatibleTacosForCross(state, col, row, kind, colorId);
+  placeCompatibleTacosForCross(state, col, row, kind, colorId, displacedTile);
 }
 
 function fixCrossConflicts(state: AppState, col: number, row: number, kind: CrossKind): void {
@@ -49,17 +52,40 @@ function fixCrossConflicts(state: AppState, col: number, row: number, kind: Cros
   }
 }
 
-function placeCompatibleTacosForCross(state: AppState, col: number, row: number, kind: CrossKind, colorId: string): void {
+function placeCompatibleTacosForCross(
+  state: AppState,
+  col: number,
+  row: number,
+  kind: CrossKind,
+  colorId: string,
+  displacedTile?: DisplacedTile,
+): void {
   if (kind === "diagonalCross") {
     for (const side of SIDES) {
-      setEdgeInsetIfNoNewConflict(state, col, row, side, colorId);
+      setEdgeInsetIfNoNewConflict(state, col, row, side, tacoAutofillColor(kind, colorId, displacedTile));
     }
     return;
   }
 
   for (const corner of CORNERS) {
-    setCornerInsetIfNoNewConflict(state, col, row, corner, colorId);
+    setCornerInsetIfNoNewConflict(state, col, row, corner, tacoAutofillColor(kind, colorId, displacedTile));
   }
+}
+
+function tacoAutofillColor(kind: CrossKind, colorId: string, displacedTile: DisplacedTile): string {
+  if (!displacedTile) {
+    return colorId;
+  }
+
+  if (kind === "diagonalCross" && displacedTile.kind !== "diagonalCross") {
+    return displacedTile.colorId;
+  }
+
+  if (kind === "orthogonalCross" && displacedTile.kind !== "orthogonalCross") {
+    return displacedTile.colorId;
+  }
+
+  return colorId;
 }
 
 function setEdgeInsetIfNoNewConflict(state: AppState, col: number, row: number, side: Side, colorId: string): void {

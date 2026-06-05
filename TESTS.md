@@ -94,6 +94,18 @@ Screenshot: `screenshots/star-removes-shared-edge-taco.png`
 
 URL: `file:///Users/ljw/code/tiles/index.html?s=H4sIAAAAAAAAEwtmZGBksGFI4GAAAiYmBhCXmYGZlQkImIFCjKxADBKEIiDmBGImFlagMgAUFVO0PQAAAA`
 
+## Overwrite star: tacos keep displaced color
+
+Screenshot: `screenshots/overwrite-star-tacos-keep-displaced-color.png`
+
+URL: `file:///Users/ljw/code/tiles/index.html?s=H4sIAAAAAAAAEwtmZGBksGFI4GAAAlbm_0DAwMzAzMoEAiAxfpA4KxCDIZgJpDkZmICKGBlYGAC3A-kTQQAAAA`
+
+## Overwrite orthogonal cross: tacos keep displaced color
+
+Screenshot: `screenshots/overwrite-orthogonal-cross-tacos-keep-displaced-color.png`
+
+URL: `file:///Users/ljw/code/tiles/index.html?s=H4sIAAAAAAAAEwtmZGBksGFI4GAAAlbm_0DAwMzAzMoEAiAxfiBmZARiMAQzgTQnAxNQESMDCwMAtyoKq0EAAAA`
+
 ## Milestone 3: textured material and grout underlay
 
 Screenshot: `screenshots/m3-texture-selective-grout.png`
