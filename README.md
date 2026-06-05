@@ -4,7 +4,7 @@ An interactive designer for star-and-cross tile layouts. Use it to explore bathr
 
 [Start designing](https://unto.me/tiles/)
 
-[![screenshot](readme-samples/screenshot.png "screenshot")](https://unto.me/tiles/)
+[![demo](readme-samples/demo.mp4 "demo")](https://unto.me/tiles/?s=H4sIAAAAAAAAE1WJwQ3DMAwDj1LVWHW8QIYo0FGK7r9JgBQy_An5OR5_Aj68N4Dw67xOkhxushUp1OqWpNaIwjmP4okcIhZSfmH5L8QseFdXd55NJtPrgWzYbrqZ3cbNeCqVDmyz_AFrMSdAtQAAAA)
 
 The style is called *Star and cross* or *Arabesque*. By combining just three kinds of tile -- star, cross, and small squares called "tacos" -- you can make a huge variety of patterns. Here are some I've come up with myself, and some from the [Equipe Kasbah](https://www.equipeceramicas.com/en/portfolio-item/kasbah/) website. You can click on them to edit.
 
